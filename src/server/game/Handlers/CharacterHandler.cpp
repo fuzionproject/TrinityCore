@@ -952,7 +952,7 @@ void WorldSession::HandlePlayerLogin(LoginQueryHolder const& holder)
         else
         {
             pCurrChar->SetTransport(nullptr);
-            pCurrChar->m_movementInfo.transport.Reset();
+            pCurrChar->_movementStatus.Transport.reset();
             pCurrChar->SetTransportSpawnID(0);
         }
     }

@@ -2124,7 +2124,7 @@ class spell_igb_teleport_to_enemy_ship : public SpellScriptLoader
                 float x, y, z, o;
                 dest->GetPosition(x, y, z, o);
                 target->GetTransport()->CalculatePassengerOffset(x, y, z, &o);
-                target->m_movementInfo.transport.pos.Relocate(x, y, z, o);
+                target->_movementStatus.Transport->Pos.Relocate(x, y, z, o);
             }
 
             void Register() override

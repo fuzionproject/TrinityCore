@@ -430,7 +430,7 @@ void Creature::RemoveCorpse(bool setSpawnTime)
         // We were spawned on transport, calculate real position
         if (IsSpawnedOnTransport())
         {
-            Position& pos = m_movementInfo.transport.pos;
+            Position& pos = _movementStatus.Transport->Pos;
             pos.m_positionX = x;
             pos.m_positionY = y;
             pos.m_positionZ = z;

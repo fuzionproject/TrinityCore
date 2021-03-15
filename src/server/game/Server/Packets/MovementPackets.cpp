@@ -248,123 +248,127 @@ void WorldPackets::Movement::SetActiveMover::Read()
 
 WorldPacket const* WorldPackets::Movement::MoveUpdateTeleport::Write()
 {
-    _worldPacket << float(Status->pos.GetPositionZ());
-    _worldPacket << float(Status->pos.GetPositionY());
-    _worldPacket << float(Status->pos.GetPositionX());
+    _worldPacket << float(Status.Pos.GetPositionZ());
+    _worldPacket << float(Status.Pos.GetPositionY());
+    _worldPacket << float(Status.Pos.GetPositionX());
 
-    _worldPacket.WriteBit(!Status->HasOrientation());
-    _worldPacket.WriteBit(Status->HasSpline());
-    _worldPacket.WriteBit(!Status->HasMovementFlags());
-    _worldPacket.WriteBit(Status->guid[2]);
-    _worldPacket.WriteBit(Status->guid[4]);
-    _worldPacket.WriteBit(Status->guid[6]);
-    _worldPacket.WriteBit(Status->HasFallData());
-    _worldPacket.WriteBit(Status->guid[0]);
-    _worldPacket.WriteBit(Status->HasTransportData());
-    _worldPacket.WriteBit(Status->guid[5]);
+    _worldPacket.WriteBit(Status.Pos.GetOrientation() == 0.f);
+    _worldPacket.WriteBit(Status.HasSpline);
+    _worldPacket.WriteBit(!Status.GetMovementFlags());
+    _worldPacket.WriteBit(Status.MoverGUID[2]);
+    _worldPacket.WriteBit(Status.MoverGUID[4]);
+    _worldPacket.WriteBit(Status.MoverGUID[6]);
+    _worldPacket.WriteBit(Status.Fall.has_value());
+    _worldPacket.WriteBit(Status.MoverGUID[0]);
+    _worldPacket.WriteBit(Status.Transport.has_value());
+    _worldPacket.WriteBit(Status.MoverGUID[5]);
 
-    if (Status->HasTransportData())
+    if (Status.Transport.has_value())
     {
-        _worldPacket.WriteBit(Status->transport.guid[1]);
-        _worldPacket.WriteBit(Status->transport.guid[4]);
-        _worldPacket.WriteBit(Status->transport.guid[5]);
-        _worldPacket.WriteBit(Status->transport.guid[3]);
-        _worldPacket.WriteBit(Status->transport.guid[0]);
-        _worldPacket.WriteBit(Status->HasTransportTime2());
-        _worldPacket.WriteBit(Status->transport.guid[7]);
-        _worldPacket.WriteBit(Status->transport.guid[6]);
-        _worldPacket.WriteBit(Status->HasTransportVehicleId());
-        _worldPacket.WriteBit(Status->transport.guid[2]);
+        ObjectGuid const& transGuid = Status.Transport->Guid;
+
+        _worldPacket.WriteBit(transGuid[1]);
+        _worldPacket.WriteBit(transGuid[4]);
+        _worldPacket.WriteBit(transGuid[5]);
+        _worldPacket.WriteBit(transGuid[3]);
+        _worldPacket.WriteBit(transGuid[0]);
+        _worldPacket.WriteBit(Status.Transport->PrevMoveTime.has_value());
+        _worldPacket.WriteBit(transGuid[7]);
+        _worldPacket.WriteBit(transGuid[6]);
+        _worldPacket.WriteBit(Status.Transport->VehicleRecID.has_value());
+        _worldPacket.WriteBit(transGuid[2]);
     }
 
-    _worldPacket.WriteBit(Status->HasHeightChangeFailed());
-    _worldPacket.WriteBit(Status->guid[7]);
-    _worldPacket.WriteBit(Status->guid[3]);
+    _worldPacket.WriteBit(Status.HeightChangeFailed);
+    _worldPacket.WriteBit(Status.MoverGUID[7]);
+    _worldPacket.WriteBit(Status.MoverGUID[3]);
 
-    _worldPacket.WriteBit(!Status->HasPitch());
-    _worldPacket.WriteBit(!Status->HasExtraMovementFlags());
-    _worldPacket.WriteBit(!Status->HasTime());
+    _worldPacket.WriteBit(Status.Pitch == 0.f);
+    _worldPacket.WriteBit(!Status.GetMovementFlags2());
+    _worldPacket.WriteBit(Status.MoveTime == 0);
 
-    if (Status->HasFallData())
-        _worldPacket.WriteBit(Status->HasFallDirection());
+    if (Status.Fall.has_value())
+        _worldPacket.WriteBit(Status.Fall->Velocity.has_value());
 
-    if (Status->HasExtraMovementFlags())
-        _worldPacket.WriteBits(Status->GetExtraMovementFlags(), 12);
+    if (uint32 flags = Status.GetMovementFlags2())
+        _worldPacket.WriteBits(flags, 12);
 
-    _worldPacket.WriteBit(!Status->HasSplineElevation());
+    _worldPacket.WriteBit(Status.StepUpStartElevation == 0.f);
 
-    if (Status->HasMovementFlags())
-        _worldPacket.WriteBits(Status->GetMovementFlags(), 30);
+    if (uint32 flags = Status.GetMovementFlags())
+        _worldPacket.WriteBits(flags, 30);
 
-    _worldPacket.WriteBit(Status->guid[1]);
+    _worldPacket.WriteBit(Status.MoverGUID[1]);
     _worldPacket.FlushBits();
 
-    _worldPacket.WriteByteSeq(Status->guid[7]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[7]);
 
-    if (Status->HasTransportData())
+    if (Status.Transport.has_value())
     {
-        _worldPacket.WriteByteSeq(Status->transport.guid[3]);
-        _worldPacket.WriteByteSeq(Status->transport.guid[4]);
-        _worldPacket << float(Status->transport.pos.GetOrientation());
+        ObjectGuid const& transGuid = Status.Transport->Guid;
 
-        if (Status->HasTransportVehicleId())
-            _worldPacket << uint32(Status->transport.vehicleId);
+        _worldPacket.WriteByteSeq(transGuid[3]);
+        _worldPacket.WriteByteSeq(transGuid[4]);
+        _worldPacket << float(Status.Transport->Pos.GetOrientation());
 
-        _worldPacket.WriteByteSeq(Status->transport.guid[1]);
+        if (Status.Transport->VehicleRecID.has_value())
+            _worldPacket << uint32(*Status.Transport->VehicleRecID);
 
-        if (Status->HasTransportTime2())
-            _worldPacket << uint32(Status->transport.time2);
+        _worldPacket.WriteByteSeq(transGuid[1]);
 
-        _worldPacket << float(Status->transport.pos.GetPositionZ());
+        if (Status.Transport->PrevMoveTime.has_value())
+            _worldPacket << uint32(*Status.Transport->PrevMoveTime);
 
-        _worldPacket.WriteByteSeq(Status->transport.guid[7]);
-        _worldPacket.WriteByteSeq(Status->transport.guid[0]);
-        _worldPacket.WriteByteSeq(Status->transport.guid[6]);
-        _worldPacket.WriteByteSeq(Status->transport.guid[5]);
-        _worldPacket.WriteByteSeq(Status->transport.guid[2]);
+        _worldPacket << float(Status.Transport->Pos.GetPositionZ());
 
-        _worldPacket << int8(Status->transport.seat);
-        _worldPacket << uint32(Status->transport.time);
-        _worldPacket << float(Status->transport.pos.GetPositionY());
-        _worldPacket << float(Status->transport.pos.GetPositionX());
+        _worldPacket.WriteByteSeq(transGuid[7]);
+        _worldPacket.WriteByteSeq(transGuid[0]);
+        _worldPacket.WriteByteSeq(transGuid[6]);
+        _worldPacket.WriteByteSeq(transGuid[5]);
+        _worldPacket.WriteByteSeq(transGuid[2]);
+
+        _worldPacket << int8(Status.Transport->VehicleSeatIndex);
+        _worldPacket << uint32(Status.Transport->MoveTime);
+        _worldPacket << float(Status.Transport->Pos.GetPositionY());
+        _worldPacket << float(Status.Transport->Pos.GetPositionX());
     }
 
-    _worldPacket.WriteByteSeq(Status->guid[6]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[6]);
 
-    if (Status->HasPitch())
-        _worldPacket << float(Status->pitch);
+    if (Status.Pitch != 0.f)
+        _worldPacket << float(Status.Pitch);
 
-    if (Status->HasSplineElevation())
-        _worldPacket << float(Status->splineElevation);
+    if (Status.StepUpStartElevation != 0.f)
+        _worldPacket << float(Status.StepUpStartElevation);
 
-    if (Status->HasOrientation())
-        _worldPacket << float(Status->pos.GetOrientation());
+    if (Status.Pos.GetOrientation() != 0.f)
+        _worldPacket << float(Status.Pos.GetOrientation());
 
-    _worldPacket.WriteByteSeq(Status->guid[2]);
-    _worldPacket.WriteByteSeq(Status->guid[3]);
-    _worldPacket.WriteByteSeq(Status->guid[1]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[2]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[3]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[1]);
 
-    if (Status->HasFallData())
+    if (Status.Fall.has_value())
     {
-        _worldPacket << uint32(Status->GetFallTime());
+        _worldPacket << uint32(Status.Fall->Time);
 
-        if (Status->HasFallDirection())
+        if (Status.Fall->Velocity.has_value())
         {
-            _worldPacket << float(Status->jump.xyspeed);
-            _worldPacket << float(Status->jump.cosAngle);
-            _worldPacket << float(Status->jump.sinAngle);
+            _worldPacket << float(Status.Fall->Velocity->Speed);
+            _worldPacket << float(Status.Fall->Velocity->Direction.x);
+            _worldPacket << float(Status.Fall->Velocity->Direction.y);
         }
 
-        _worldPacket << float(Status->jump.zspeed);
+        _worldPacket << float(Status.Fall->JumpVelocity);
     }
 
-    _worldPacket.WriteByteSeq(Status->guid[5]);
-    _worldPacket.WriteByteSeq(Status->guid[4]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[5]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[4]);
 
-    if (Status->HasTime())
-        _worldPacket << uint32(Status->time);
+    if (Status.MoveTime != 0)
+        _worldPacket << uint32(Status.MoveTime);
 
-    _worldPacket.WriteByteSeq(Status->guid[0]);
+    _worldPacket.WriteByteSeq(Status.MoverGUID[0]);
 
     return &_worldPacket;
 }
@@ -488,6 +492,123 @@ WorldPacket const* WorldPackets::Movement::TransferAborted::Write()
     _worldPacket << uint32(MapID);
     _worldPacket << uint8(TransfertAbort);
     _worldPacket << uint8(Arg);
+
+    return &_worldPacket;
+}
+
+WorldPacket const* WorldPackets::Movement::MovementUpdate::Write()
+{
+    _worldPacket.WriteBit(Status.Fall.has_value());
+    _worldPacket.WriteBit(Status.MoverGUID[3]);
+    _worldPacket.WriteBit(Status.MoverGUID[6]);
+    _worldPacket.WriteBit(Status.GetMovementFlags2() == 0);
+    _worldPacket.WriteBit(Status.HasSpline);
+    _worldPacket.WriteBit(Status.MoveTime == 0);
+    _worldPacket.WriteBit(Status.MoverGUID[0]);
+    _worldPacket.WriteBit(Status.MoverGUID[1]);
+
+    if (uint32 flags = Status.GetMovementFlags2())
+        _worldPacket.WriteBits(flags, 12);
+
+    _worldPacket.WriteBit(Status.MoverGUID[7]);
+    _worldPacket.WriteBit(Status.GetMovementFlags() == 0);
+    _worldPacket.WriteBit(Status.Pos.GetOrientation() == 0.f);
+    _worldPacket.WriteBit(Status.MoverGUID[2]);
+    _worldPacket.WriteBit(Status.StepUpStartElevation == 0.f);
+    _worldPacket.WriteBit(Status.HeightChangeFailed);
+    _worldPacket.WriteBit(Status.MoverGUID[4]);
+
+    if (Status.Fall.has_value())
+        _worldPacket.WriteBit(Status.Fall->Velocity.has_value());
+
+    _worldPacket.WriteBit(Status.MoverGUID[5]);
+    _worldPacket.WriteBit(Status.Transport.has_value());
+
+    if (uint32 flags = Status.GetMovementFlags())
+        _worldPacket.WriteBits(flags, 30);
+
+    if (Status.Transport.has_value())
+    {
+        _worldPacket.WriteBit(Status.Transport->Guid[3]);
+        _worldPacket.WriteBit(Status.Transport->VehicleRecID.has_value());
+        _worldPacket.WriteBit(Status.Transport->Guid[6]);
+        _worldPacket.WriteBit(Status.Transport->Guid[1]);
+        _worldPacket.WriteBit(Status.Transport->Guid[7]);
+        _worldPacket.WriteBit(Status.Transport->Guid[0]);
+        _worldPacket.WriteBit(Status.Transport->Guid[4]);
+        _worldPacket.WriteBit(Status.Transport->PrevMoveTime.has_value());
+        _worldPacket.WriteBit(Status.Transport->Guid[5]);
+        _worldPacket.WriteBit(Status.Transport->Guid[2]);
+    }
+
+    _worldPacket.WriteBit(Status.Pitch == 0.f);
+    _worldPacket.FlushBits();
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[5]);
+    if (Status.Fall.has_value())
+    {
+        if (Status.Fall->Velocity.has_value())
+        {
+            _worldPacket << float(Status.Fall->Velocity->Speed);
+            _worldPacket << float(Status.Fall->Velocity->Direction.y);
+            _worldPacket << float(Status.Fall->Velocity->Direction.x);
+        }
+
+        _worldPacket << float(Status.Fall->JumpVelocity);
+        _worldPacket << uint32(Status.Fall->Time);
+    }
+
+    if (Status.StepUpStartElevation != 0.f)
+        _worldPacket << float(Status.StepUpStartElevation);
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[7]);
+    _worldPacket << float(Status.Pos.GetPositionY());
+    _worldPacket.WriteByteSeq(Status.MoverGUID[3]);
+
+    if (Status.Transport.has_value())
+    {
+        if (Status.Transport->VehicleRecID.has_value())
+            _worldPacket << uint32(*Status.Transport->VehicleRecID);
+
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[6]);
+        _worldPacket << int8(Status.Transport->VehicleSeatIndex);
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[5]);
+        _worldPacket << float(Status.Transport->Pos.GetPositionX());
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[1]);
+        _worldPacket << float(Status.Transport->Pos.GetOrientation());
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[2]);
+
+        if (Status.Transport->PrevMoveTime.has_value())
+            _worldPacket << uint32(*Status.Transport->PrevMoveTime);
+
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[0]);
+        _worldPacket << float(Status.Transport->Pos.GetPositionZ());
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[7]);
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[4]);
+        _worldPacket.WriteByteSeq(Status.Transport->Guid[3]);
+        _worldPacket << float(Status.Transport->Pos.GetPositionY());
+        _worldPacket << uint32(Status.Transport->MoveTime);
+    }
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[4]);
+    _worldPacket << float(Status.Pos.GetPositionX());
+    _worldPacket.WriteByteSeq(Status.MoverGUID[6]);
+    _worldPacket << float(Status.Pos.GetPositionZ());
+
+    if (Status.MoveTime != 0)
+        _worldPacket << uint32(Status.MoveTime);
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[2]);
+
+    if (Status.Pitch != 0.f)
+        _worldPacket << float(Status.Pitch);
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[0]);
+
+    if (Status.Pos.GetOrientation() != 0.f)
+        _worldPacket << float(Status.Pos.GetOrientation());
+
+    _worldPacket.WriteByteSeq(Status.MoverGUID[1]);
 
     return &_worldPacket;
 }

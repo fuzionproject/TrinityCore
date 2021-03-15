@@ -454,19 +454,19 @@ class TC_GAME_API WorldObject : public Object, public WorldLocation
 
         // Transports
         Transport* GetTransport() const { return m_transport; }
-        float GetTransOffsetX() const { return m_movementInfo.transport.pos.GetPositionX(); }
-        float GetTransOffsetY() const { return m_movementInfo.transport.pos.GetPositionY(); }
-        float GetTransOffsetZ() const { return m_movementInfo.transport.pos.GetPositionZ(); }
-        float GetTransOffsetO() const { return m_movementInfo.transport.pos.GetOrientation(); }
-        Position const& GetTransOffset() const { return m_movementInfo.transport.pos; }
-        uint32 GetTransTime()   const { return m_movementInfo.transport.time; }
-        int8 GetTransSeat()     const { return m_movementInfo.transport.seat; }
+        float GetTransOffsetX() const { return _movementStatus.Transport->Pos.GetPositionX(); }
+        float GetTransOffsetY() const { return _movementStatus.Transport->Pos.GetPositionY(); }
+        float GetTransOffsetZ() const { return _movementStatus.Transport->Pos.GetPositionZ(); }
+        float GetTransOffsetO() const { return _movementStatus.Transport->Pos.GetOrientation(); }
+        Position const& GetTransOffset() const { return _movementStatus.Transport->Pos; }
+        uint32 GetTransTime()   const { return _movementStatus.Transport->MoveTime; }
+        int8 GetTransSeat()     const { return _movementStatus.Transport->VehicleSeatIndex; }
         virtual ObjectGuid GetTransGUID() const;
         void SetTransport(Transport* t) { m_transport = t; }
 
         MapTransport* GetMapTransport() const;
 
-        MovementInfo m_movementInfo;
+        MovementStatus _movementStatus;
 
         virtual float GetStationaryX() const { return GetPositionX(); }
         virtual float GetStationaryY() const { return GetPositionY(); }

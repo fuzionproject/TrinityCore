@@ -557,9 +557,9 @@ Vehicle* Vehicle::RemovePassenger(Unit* unit)
     if (_me->IsInWorld())
     {
         if (!_me->GetTransport())
-            unit->m_movementInfo.ResetTransport();
+            unit->_movementStatus.Transport.reset();
         else
-            unit->m_movementInfo.transport = _me->m_movementInfo.transport;
+            unit->_movementStatus.Transport = _me->_movementStatus.Transport;
     }
 
     if (_me->GetTypeId() == TYPEID_UNIT && _me->ToCreature()->IsAIEnabled)
@@ -596,7 +596,7 @@ void Vehicle::RelocatePassengers()
             ASSERT(passenger->IsInWorld());
 
             float px, py, pz, po;
-            passenger->m_movementInfo.transport.pos.GetPosition(px, py, pz, po);
+            passenger->_movementStatus.Transport->Pos.GetPosition(px, py, pz, po);
             CalculatePassengerPosition(px, py, pz, &po);
             seatRelocation.emplace_back(passenger, Position(px, py, pz, po));
         }
@@ -649,15 +649,15 @@ void Vehicle::InitMovementInfoForBase()
     uint32 vehicleFlags = GetVehicleInfo()->Flags;
 
     if (vehicleFlags & VEHICLE_FLAG_NO_STRAFE)
-        _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_NO_STRAFE);
+        _me->AddUnitMovementFlag(MOVEMENTFLAG2_NO_STRAFE);
     if (vehicleFlags & VEHICLE_FLAG_NO_JUMPING)
-        _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_NO_JUMPING);
+        _me->AddUnitMovementFlag(MOVEMENTFLAG2_NO_JUMPING);
     if (vehicleFlags & VEHICLE_FLAG_FULLSPEEDTURNING)
-        _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_FULL_SPEED_TURNING);
+        _me->AddUnitMovementFlag(MOVEMENTFLAG2_FULL_SPEED_TURNING);
     if (vehicleFlags & VEHICLE_FLAG_ALLOW_PITCHING)
-        _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
+        _me->AddUnitMovementFlag(MOVEMENTFLAG2_ALWAYS_ALLOW_PITCHING);
     if (vehicleFlags & VEHICLE_FLAG_FULLSPEEDPITCHING)
-        _me->AddExtraUnitMovementFlag(MOVEMENTFLAG2_FULL_SPEED_PITCHING);
+        _me->AddUnitMovementFlag(MOVEMENTFLAG2_FULL_SPEED_PITCHING);
 }
 
 /**
@@ -908,11 +908,12 @@ bool VehicleJoinEvent::Execute(uint64, uint32)
         z += veSeatAddon->SeatZOffset;
     }
 
-    Passenger->m_movementInfo.transport.pos.Relocate(x, y, z, o);
-    Passenger->m_movementInfo.transport.time = 0;
-    Passenger->m_movementInfo.transport.seat = Seat->first;
-    Passenger->m_movementInfo.transport.guid = Target->GetBase()->GetGUID();
-    Passenger->m_movementInfo.transport.vehicleId = Target->GetVehicleInfo()->ID;
+    MovementTransportData& transport = Passenger->_movementStatus.Transport.emplace();
+    transport.Pos.Relocate(x, y, z, o);
+    transport.MoveTime = 0;
+    transport.VehicleSeatIndex = Seat->first;
+    transport.Guid = Target->GetBase()->GetGUID();
+    transport.VehicleRecID = Target->GetVehicleInfo()->ID;
 
     if (Target->GetBase()->GetTypeId() == TYPEID_UNIT && Passenger->GetTypeId() == TYPEID_PLAYER &&
         veSeat->HasFlag(VEHICLE_SEAT_FLAG_CAN_CONTROL))

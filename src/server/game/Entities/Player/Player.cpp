@@ -1480,8 +1480,8 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
         ExitVehicle();
 
     // reset movement flags at teleport, because player will continue move with these flags after teleport
-    SetUnitMovementFlags(GetUnitMovementFlags() & MOVEMENTFLAG_MASK_HAS_PLAYER_STATUS_OPCODE);
-    m_movementInfo.ResetJump();
+    SetUnitMovementFlag(MovementFlags(GetUnitMovementFlags() & MOVEMENTFLAG_MASK_HAS_PLAYER_STATUS_OPCODE));
+    _movementStatus.Fall.reset();
     DisableSpline();
 
     if (Transport* transport = GetTransport())
@@ -17128,20 +17128,20 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
             if (m_transport)
             {
                 float x = fields[32].GetFloat(), y = fields[33].GetFloat(), z = fields[34].GetFloat(), o = fields[35].GetFloat();
-                m_movementInfo.transport.pos.Relocate(x, y, z, o);
+                _movementStatus.Transport->Pos.Relocate(x, y, z, o);
                 m_transport->CalculatePassengerPosition(x, y, z, &o);
 
                 if (!Trinity::IsValidMapCoord(x, y, z, o) ||
                     // transport size limited
-                    std::fabs(m_movementInfo.transport.pos.GetPositionX()) > 250.0f ||
-                    std::fabs(m_movementInfo.transport.pos.GetPositionY()) > 250.0f ||
-                    std::fabs(m_movementInfo.transport.pos.GetPositionZ()) > 250.0f)
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionX()) > 250.0f ||
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionY()) > 250.0f ||
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionZ()) > 250.0f)
                 {
                     TC_LOG_ERROR("entities.player", "Player::LoadFromDB: Player (%s) has invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to bind location.",
                         guid.ToString().c_str(), x, y, z, o);
 
                     m_transport = nullptr;
-                    m_movementInfo.transport.Reset();
+                    _movementStatus.Transport.reset();
 
                     RelocateToHomebind();
                 }
@@ -17163,19 +17163,19 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
                     float dataOrient = data->spawnPoint.GetOrientation();
 
                     float x = fields[32].GetFloat(), y = fields[33].GetFloat(), z = fields[34].GetFloat(), o = fields[35].GetFloat();
-                    m_movementInfo.transport.pos.Relocate(x, y, z, o);
+                    _movementStatus.Transport->Pos.Relocate(x, y, z, o);
                     TransportBase::CalculatePassengerPosition(x, y, z, &o, dataX, dataY, dataZ, dataOrient);
 
                     if (!Trinity::IsValidMapCoord(x, y, z, o) ||
                         // transport size limited
-                        std::fabs(m_movementInfo.transport.pos.GetPositionX()) > 250.0f ||
-                        std::fabs(m_movementInfo.transport.pos.GetPositionX()) > 250.0f ||
-                        std::fabs(m_movementInfo.transport.pos.GetPositionX()) > 250.0f)
+                        std::fabs(_movementStatus.Transport->Pos.GetPositionX()) > 250.0f ||
+                        std::fabs(_movementStatus.Transport->Pos.GetPositionY()) > 250.0f ||
+                        std::fabs(_movementStatus.Transport->Pos.GetPositionZ()) > 250.0f)
                     {
                         TC_LOG_ERROR("entities.player", "Player (%s) have invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to bind location.",
                             guid.ToString().c_str(), x, y, z, o);
 
-                        m_movementInfo.transport.Reset();
+                        _movementStatus.Transport.reset();
                         RelocateToHomebind();
                     }
                     else
@@ -17196,20 +17196,20 @@ bool Player::LoadFromDB(ObjectGuid guid, CharacterDatabaseQueryHolder const& hol
             if (m_transport)
             {
                 float x = fields[32].GetFloat(), y = fields[33].GetFloat(), z = fields[34].GetFloat(), o = fields[35].GetFloat();
-                m_movementInfo.transport.pos.Relocate(x, y, z, o);
+                _movementStatus.Transport->Pos.Relocate(x, y, z, o);
                 m_transport->CalculatePassengerPosition(x, y, z, &o);
 
                 if (!Trinity::IsValidMapCoord(x, y, z, o) ||
                     // transport size limited
-                    std::fabs(m_movementInfo.transport.pos.GetPositionX()) > 250.0f ||
-                    std::fabs(m_movementInfo.transport.pos.GetPositionY()) > 250.0f ||
-                    std::fabs(m_movementInfo.transport.pos.GetPositionZ()) > 250.0f)
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionX()) > 250.0f ||
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionY()) > 250.0f ||
+                    std::fabs(_movementStatus.Transport->Pos.GetPositionZ()) > 250.0f)
                 {
                     TC_LOG_ERROR("entities.player", "Player (%s) have invalid transport coordinates (X: %f Y: %f Z: %f O: %f). Teleport to bind location.",
                         guid.ToString().c_str(), x, y, z, o);
 
                     m_transport = nullptr;
-                    m_movementInfo.transport.Reset();
+                    _movementStatus.Transport.reset();
 
                     RelocateToHomebind();
                 }
@@ -25849,10 +25849,10 @@ void Player::SetFallInformation(uint32 time, float z)
     m_lastFallZ = z;
 }
 
-void Player::HandleFall(MovementInfo const& movementInfo)
+void Player::HandleFall(MovementStatus const& movementStatus)
 {
     // calculate total z distance of the fall
-    float z_diff = m_lastFallZ - movementInfo.pos.GetPositionZ();
+    float z_diff = m_lastFallZ - movementStatus.Pos.GetPositionZ();
     //TC_LOG_DEBUG("misc", "zDiff = %f", z_diff);
 
     //Players with low fall distance, Feather Fall or physical immunity (charges used) are ignored
@@ -25873,8 +25873,8 @@ void Player::HandleFall(MovementInfo const& movementInfo)
             if (GetCommandStatus(CHEAT_GOD))
                 damage = 0;
 
-            float height = movementInfo.pos.m_positionZ;
-            UpdateGroundPositionZ(movementInfo.pos.m_positionX, movementInfo.pos.m_positionY, height);
+            float height = movementStatus.Pos.m_positionZ;
+            UpdateGroundPositionZ(movementStatus.Pos.m_positionX, movementStatus.Pos.m_positionY, height);
 
             if (damage > 0)
             {
@@ -25895,7 +25895,7 @@ void Player::HandleFall(MovementInfo const& movementInfo)
             }
 
             //Z given by moveinfo, LastZ, FallTime, WaterZ, MapZ, Damage, Safefall reduction
-            TC_LOG_DEBUG("entities.player", "FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d", movementInfo.pos.GetPositionZ(), height, GetPositionZ(), movementInfo.jump.fallTime, height, damage, safe_fall);
+            TC_LOG_DEBUG("entities.player", "FALLDAMAGE z=%f sz=%f pZ=%f FallTime=%d mZ=%f damage=%d SF=%d", movementStatus.Pos.GetPositionZ(), height, GetPositionZ(), movementStatus.Fall->Time, height, damage, safe_fall);
         }
     }
 }
@@ -26232,10 +26232,13 @@ void Player::AddKnownCurrency(uint32 itemId)
         SetFlag64(0, (1LL << (ctEntry->ID-1)));
 }
 
-void Player::UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode)
+void Player::UpdateFallInformationIfNeed(MovementStatus const& movementStatus, uint16 opcode)
 {
-    if (m_lastFallTime >= minfo.jump.fallTime || m_lastFallZ <= minfo.pos.GetPositionZ() || opcode == MSG_MOVE_FALL_LAND)
-        SetFallInformation(minfo.jump.fallTime, minfo.pos.GetPositionZ());
+    if (!movementStatus.Fall.has_value())
+        return;
+
+    if (m_lastFallTime >= movementStatus.Fall->Time || m_lastFallZ <= movementStatus.Pos.GetPositionZ() || opcode == MSG_MOVE_FALL_LAND)
+        SetFallInformation( movementStatus.Fall->Time, movementStatus.Pos.GetPositionZ());
 }
 
 void Player::UnsummonPetTemporaryIfAny()
@@ -27761,14 +27764,7 @@ Pet* Player::SummonPet(uint32 entry, float x, float y, float z, float ang, PetTy
 
         Transport* transport = GetTransGUID().IsEmpty() ? GetTransport() : nullptr;
         if (transport)
-        {
-            float x, y, z, o;
-            pet->GetPosition(x, y, z, o);
-            transport->CalculatePassengerOffset(x, y, z, &o);
-            pet->m_movementInfo.transport.pos.Relocate(x, y, z, o);
-
             transport->AddPassenger(pet);
-        }
 
         switch (petType)
         {
@@ -27826,7 +27822,7 @@ bool Player::CanUseMastery() const
     return HasSpell(MasterySpells[getClass()]);
 }
 
-void Player::ValidateMovementInfo(MovementInfo* mi)
+void Player::SanitizeMovementStatus(MovementStatus& movementStatus)
 {
     //! Anti-cheat checks. Please keep them in seperate if () blocks to maintain a clear overview.
     //! Might be subject to latency, so just remove improper flags.
@@ -27837,58 +27833,58 @@ void Player::ValidateMovementInfo(MovementInfo* mi)
         { \
             TC_LOG_DEBUG("entities.unit", "Player::ValidateMovementInfo: Violation of MovementFlags found (%s). " \
                 "MovementFlags: %u, MovementFlags2: %u for player %s. Mask %u will be removed.", \
-                STRINGIZE(check), mi->GetMovementFlags(), mi->GetExtraMovementFlags(), GetGUID().ToString().c_str(), maskToRemove); \
-            mi->RemoveMovementFlag((maskToRemove)); \
+                STRINGIZE(check), movementStatus.MovementFlags0, movementStatus.MovementFlags1, GetGUID().ToString().c_str(), maskToRemove); \
+            movementStatus.RemoveMovementFlag((maskToRemove)); \
         } \
     }
     #else
     #define REMOVE_VIOLATING_FLAGS(check, maskToRemove) \
         if (check) \
-            mi->RemoveMovementFlag((maskToRemove));
+            movementStatus.RemoveMovementFlag((maskToRemove));
     #endif
 
     if (!m_unitMovedByMe->GetVehicleBase() || !(m_unitMovedByMe->GetVehicle()->GetVehicleInfo()->Flags & VEHICLE_FLAG_FIXED_POSITION))
-        REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_ROOT), MOVEMENTFLAG_ROOT);
+        REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_ROOT), MOVEMENTFLAG_ROOT);
 
     /*! This must be a packet spoofing attempt. MOVEMENTFLAG_ROOT sent from the client is not valid
         in conjunction with any of the moving movement flags such as MOVEMENTFLAG_FORWARD.
         It will freeze clients that receive this player's movement info.
     */
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_ROOT) && mi->HasMovementFlag(MOVEMENTFLAG_MASK_MOVING),
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_ROOT) && movementStatus.HasMovementFlag(MOVEMENTFLAG_MASK_MOVING),
         MOVEMENTFLAG_MASK_MOVING);
 
     //! Cannot hover without SPELL_AURA_HOVER
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_HOVER) && !m_unitMovedByMe->HasAuraType(SPELL_AURA_HOVER),
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_HOVER) && !m_unitMovedByMe->HasAuraType(SPELL_AURA_HOVER),
         MOVEMENTFLAG_HOVER);
 
     //! Cannot ascend and descend at the same time
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_ASCENDING) && mi->HasMovementFlag(MOVEMENTFLAG_DESCENDING),
-        MOVEMENTFLAG_ASCENDING | MOVEMENTFLAG_DESCENDING);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_ASCENDING) && movementStatus.HasMovementFlag(MOVEMENTFLAG_DESCENDING),
+        MovementFlags(MOVEMENTFLAG_ASCENDING | MOVEMENTFLAG_DESCENDING));
 
     //! Cannot move left and right at the same time
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_LEFT) && mi->HasMovementFlag(MOVEMENTFLAG_RIGHT),
-        MOVEMENTFLAG_LEFT | MOVEMENTFLAG_RIGHT);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_LEFT) && movementStatus.HasMovementFlag(MOVEMENTFLAG_RIGHT),
+        MovementFlags(MOVEMENTFLAG_LEFT | MOVEMENTFLAG_RIGHT));
 
     //! Cannot strafe left and right at the same time
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_STRAFE_LEFT) && mi->HasMovementFlag(MOVEMENTFLAG_STRAFE_RIGHT),
-        MOVEMENTFLAG_STRAFE_LEFT | MOVEMENTFLAG_STRAFE_RIGHT);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_STRAFE_LEFT) && movementStatus.HasMovementFlag(MOVEMENTFLAG_STRAFE_RIGHT),
+        MovementFlags(MOVEMENTFLAG_STRAFE_LEFT | MOVEMENTFLAG_STRAFE_RIGHT));
 
     //! Cannot pitch up and down at the same time
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_PITCH_UP) && mi->HasMovementFlag(MOVEMENTFLAG_PITCH_DOWN),
-        MOVEMENTFLAG_PITCH_UP | MOVEMENTFLAG_PITCH_DOWN);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_PITCH_UP) && movementStatus.HasMovementFlag(MOVEMENTFLAG_PITCH_DOWN),
+        MovementFlags(MOVEMENTFLAG_PITCH_UP | MOVEMENTFLAG_PITCH_DOWN));
 
     //! Cannot move forwards and backwards at the same time
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_FORWARD) && mi->HasMovementFlag(MOVEMENTFLAG_BACKWARD),
-        MOVEMENTFLAG_FORWARD | MOVEMENTFLAG_BACKWARD);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_FORWARD) && movementStatus.HasMovementFlag(MOVEMENTFLAG_BACKWARD),
+        MovementFlags(MOVEMENTFLAG_FORWARD | MOVEMENTFLAG_BACKWARD));
 
     //! Cannot walk on water without SPELL_AURA_WATER_WALK except for ghosts
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_WATERWALKING) &&
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_WATERWALKING) &&
         !m_unitMovedByMe->HasAuraType(SPELL_AURA_WATER_WALK) &&
         !m_unitMovedByMe->HasAuraType(SPELL_AURA_GHOST),
         MOVEMENTFLAG_WATERWALKING);
 
     //! Cannot feather fall without SPELL_AURA_FEATHER_FALL
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_FALLING_SLOW) && !m_unitMovedByMe->HasAuraType(SPELL_AURA_FEATHER_FALL),
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_FALLING_SLOW) && !m_unitMovedByMe->HasAuraType(SPELL_AURA_FEATHER_FALL),
         MOVEMENTFLAG_FALLING_SLOW);
 
     /*! Cannot fly if no fly auras present. Exception is being a GM.
@@ -27897,46 +27893,38 @@ void Player::ValidateMovementInfo(MovementInfo* mi)
         e.g. aerial combat.
     */
 
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_CAN_FLY) && GetSession()->GetSecurity() == SEC_PLAYER &&
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MovementFlags(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_CAN_FLY)) && GetSession()->GetSecurity() == SEC_PLAYER &&
         !m_unitMovedByMe->HasAuraType(SPELL_AURA_FLY) &&
         !m_unitMovedByMe->HasAuraType(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED),
-        MOVEMENTFLAG_FLYING | MOVEMENTFLAG_CAN_FLY);
+        MovementFlags(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_CAN_FLY));
 
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_CAN_FLY) && mi->HasMovementFlag(MOVEMENTFLAG_FALLING),
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MovementFlags(MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_CAN_FLY)) && movementStatus.HasMovementFlag(MOVEMENTFLAG_FALLING),
         MOVEMENTFLAG_FALLING);
 
-    REMOVE_VIOLATING_FLAGS(mi->HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION) && G3D::fuzzyEq(mi->splineElevation, 0.0f), MOVEMENTFLAG_SPLINE_ELEVATION);
+    REMOVE_VIOLATING_FLAGS(movementStatus.HasMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION) && G3D::fuzzyEq(movementStatus.StepUpStartElevation, 0.0f), MOVEMENTFLAG_SPLINE_ELEVATION);
 
     // Client first checks if spline elevation != 0, then verifies flag presence
-    if (G3D::fuzzyNe(mi->splineElevation, 0.0f))
-        mi->AddMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
+    if (G3D::fuzzyNe(movementStatus.StepUpStartElevation, 0.0f))
+        movementStatus.AddMovementFlag(MOVEMENTFLAG_SPLINE_ELEVATION);
 
     #undef REMOVE_VIOLATING_FLAGS
 }
 
-void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::ExtraMovementStatusElement* extras /*= nullptr*/)
+void Player::ExtractMovementStatusFromPacket(WorldPacket& data, MovementStatus& movementStatus, Movement::ExtraMovementStatusElement* extraStatusElements /*= nullptr*/)
 {
     MovementStatusElements const* sequence = GetMovementStatusElementsSequence(static_cast<OpcodeClient>(data.GetOpcode()));
     if (!sequence)
     {
-        TC_LOG_ERROR("network", "Player::ReadMovementInfo: No movement sequence found for opcode %s", GetOpcodeNameForLogging(static_cast<OpcodeClient>(data.GetOpcode())).c_str());
+        TC_LOG_ERROR("network", "Player::ExtractMovementStatusFromPacket: No movement sequence found for opcode %s", GetOpcodeNameForLogging(static_cast<OpcodeClient>(data.GetOpcode())).c_str());
         return;
     }
 
-    bool hasMovementFlags = false;
-    bool hasMovementFlags2 = false;
-    bool hasTimestamp = false;
-    bool hasOrientation = false;
-    bool hasTransportData = false;
-    bool hasTransportTime2 = false;
-    bool hasTransportVehicleId = false;
-    bool hasPitch = false;
-    bool hasFallData = false;
-    bool hasFallDirection = false;
-    bool hasSplineElevation = false;
-
-    ObjectGuid guid;
-    ObjectGuid tguid;
+    bool hasMovementFlags           = false;
+    bool hasMovementFlags2          = false;
+    bool hasMoveTime                = false;
+    bool hasFacing                  = false;
+    bool hasPitch                   = false;
+    bool hasStepUpStartElevation    = false;
 
     for (; *sequence != MSEEnd; ++sequence)
     {
@@ -27952,7 +27940,7 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
             case MSEHasGuidByte5:
             case MSEHasGuidByte6:
             case MSEHasGuidByte7:
-                guid[element - MSEHasGuidByte0] = data.ReadBit();
+                movementStatus.MoverGUID[element - MSEHasGuidByte0] = data.ReadBit();
                 break;
             case MSEHasTransportGuidByte0:
             case MSEHasTransportGuidByte1:
@@ -27962,8 +27950,8 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
             case MSEHasTransportGuidByte5:
             case MSEHasTransportGuidByte6:
             case MSEHasTransportGuidByte7:
-                if (hasTransportData)
-                    tguid[element - MSEHasTransportGuidByte0] = data.ReadBit();
+                if (movementStatus.Transport)
+                    movementStatus.Transport->Guid[element - MSEHasTransportGuidByte0] = data.ReadBit();
                 break;
             case MSEGuidByte0:
             case MSEGuidByte1:
@@ -27973,7 +27961,7 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
             case MSEGuidByte5:
             case MSEGuidByte6:
             case MSEGuidByte7:
-                data.ReadByteSeq(guid[element - MSEGuidByte0]);
+                data.ReadByteSeq(movementStatus.MoverGUID[element - MSEGuidByte0]);
                 break;
             case MSETransportGuidByte0:
             case MSETransportGuidByte1:
@@ -27983,8 +27971,8 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
             case MSETransportGuidByte5:
             case MSETransportGuidByte6:
             case MSETransportGuidByte7:
-                if (hasTransportData)
-                    data.ReadByteSeq(tguid[element - MSETransportGuidByte0]);
+                if (movementStatus.Transport)
+                    data.ReadByteSeq(movementStatus.Transport->Guid[element - MSETransportGuidByte0]);
                 break;
             case MSEHasMovementFlags:
                 hasMovementFlags = !data.ReadBit();
@@ -27993,135 +27981,140 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
                 hasMovementFlags2 = !data.ReadBit();
                 break;
             case MSEHasTimestamp:
-                hasTimestamp = !data.ReadBit();
+                hasMoveTime = !data.ReadBit();
                 break;
             case MSEHasOrientation:
-                hasOrientation = !data.ReadBit();
+                hasFacing = !data.ReadBit();
                 break;
             case MSEHasTransportData:
-                hasTransportData = data.ReadBit();
+                if (data.ReadBit())
+                    movementStatus.Transport.emplace();
                 break;
             case MSEHasTransportTime2:
-                if (hasTransportData)
-                    hasTransportTime2 = data.ReadBit();
+                if (movementStatus.Transport)
+                    if (data.ReadBit())
+                        movementStatus.Transport->PrevMoveTime.emplace(0);
                 break;
             case MSEHasVehicleId:
-                if (hasTransportData)
-                    hasTransportVehicleId = data.ReadBit();
+                if (movementStatus.Transport)
+                    if (data.ReadBit())
+                        movementStatus.Transport->VehicleRecID.emplace(0);
                 break;
             case MSEHasPitch:
                 hasPitch = !data.ReadBit();
                 break;
             case MSEHasFallData:
-                hasFallData = data.ReadBit();
+                if (data.ReadBit())
+                    movementStatus.Fall.emplace();
                 break;
             case MSEHasFallDirection:
-                if (hasFallData)
-                    hasFallDirection = data.ReadBit();
+                if (movementStatus.Fall)
+                    if (data.ReadBit())
+                        movementStatus.Fall->Velocity.emplace();
                 break;
             case MSEHasSplineElevation:
-                hasSplineElevation = !data.ReadBit();
+                hasStepUpStartElevation = !data.ReadBit();
                 break;
             case MSEHasSpline:
-                data.ReadBit();
+                movementStatus.HasSpline = data.ReadBit();
                 break;
             case MSEHasHeightChangeFailed:
-                data.ReadBit();
+                movementStatus.HeightChangeFailed = data.ReadBit();
                 break;
             case MSEMovementFlags:
                 if (hasMovementFlags)
-                    mi->flags = data.ReadBits(30);
+                    movementStatus.MovementFlags0 = data.ReadBits(30);
                 break;
             case MSEMovementFlags2:
                 if (hasMovementFlags2)
-                    mi->flags2 = data.ReadBits(12);
+                    movementStatus.MovementFlags1 = data.ReadBits(12);
                 break;
             case MSETimestamp:
-                if (hasTimestamp)
-                    data >> mi->time;
+                if (hasMoveTime)
+                    data >> movementStatus.MoveTime;
                 break;
             case MSEPositionX:
-                data >> mi->pos.m_positionX;
+                data >> movementStatus.Pos.m_positionX;
                 break;
             case MSEPositionY:
-                data >> mi->pos.m_positionY;
+                data >> movementStatus.Pos.m_positionY;
                 break;
             case MSEPositionZ:
-                data >> mi->pos.m_positionZ;
+                data >> movementStatus.Pos.m_positionZ;
                 break;
             case MSEOrientation:
-                if (hasOrientation)
-                    mi->pos.SetOrientation(data.read<float>());
+                if (hasFacing)
+                    movementStatus.Pos.SetOrientation(data.read<float>());
                 break;
             case MSETransportPositionX:
-                if (hasTransportData)
-                    data >> mi->transport.pos.m_positionX;
+                if (movementStatus.Transport)
+                    data >> movementStatus.Transport->Pos.m_positionX;
                 break;
             case MSETransportPositionY:
-                if (hasTransportData)
-                    data >> mi->transport.pos.m_positionY;
+                if (movementStatus.Transport)
+                    data >> movementStatus.Transport->Pos.m_positionY;
                 break;
             case MSETransportPositionZ:
-                if (hasTransportData)
-                    data >> mi->transport.pos.m_positionZ;
+                if (movementStatus.Transport)
+                    data >> movementStatus.Transport->Pos.m_positionZ;
                 break;
             case MSETransportOrientation:
-                if (hasTransportData)
-                    mi->transport.pos.SetOrientation(data.read<float>());
+                if (movementStatus.Transport)
+                    movementStatus.Transport->Pos.SetOrientation(data.read<float>());
                 break;
             case MSETransportSeat:
-                if (hasTransportData)
-                    data >> mi->transport.seat;
+                if (movementStatus.Transport)
+                    data >> movementStatus.Transport->VehicleSeatIndex;
                 break;
             case MSETransportTime:
-                if (hasTransportData)
-                    data >> mi->transport.time;
+                if (movementStatus.Transport)
+                    data >> movementStatus.Transport->MoveTime;
                 break;
             case MSETransportTime2:
-                if (hasTransportData && hasTransportTime2)
-                    data >> mi->transport.time2;
+                if (movementStatus.Transport && movementStatus.Transport->PrevMoveTime.has_value())
+                    movementStatus.Transport->PrevMoveTime = data.read<uint32>();
                 break;
             case MSETransportVehicleId:
-                if (hasTransportData && hasTransportVehicleId)
-                    data >> mi->transport.vehicleId;
+                if (movementStatus.Transport && movementStatus.Transport->VehicleRecID.has_value())
+                    movementStatus.Transport->VehicleRecID = data.read<int32>();
                 break;
             case MSEPitch:
                 if (hasPitch)
-                    mi->pitch = G3D::wrap(data.read<float>(), float(-M_PI), float(M_PI));
+                    movementStatus.Pitch = G3D::wrap(data.read<float>(), float(-M_PI), float(M_PI));
                 break;
             case MSEFallTime:
-                if (hasFallData)
-                    data >> mi->jump.fallTime;
+                if (movementStatus.Fall)
+                    data >> movementStatus.Fall->Time;
                 break;
             case MSEFallVerticalSpeed:
-                if (hasFallData)
-                    data >> mi->jump.zspeed;
+                if (movementStatus.Fall)
+                    data >> movementStatus.Fall->JumpVelocity;
                 break;
             case MSEFallCosAngle:
-                if (hasFallData && hasFallDirection)
-                    data >> mi->jump.cosAngle;
+                if (movementStatus.Fall && movementStatus.Fall->Velocity)
+                    data >> movementStatus.Fall->Velocity->Direction.x;
                 break;
             case MSEFallSinAngle:
-                if (hasFallData && hasFallDirection)
-                    data >> mi->jump.sinAngle;
+                if (movementStatus.Fall && movementStatus.Fall->Velocity)
+                    data >> movementStatus.Fall->Velocity->Direction.y;
                 break;
             case MSEFallHorizontalSpeed:
-                if (hasFallData && hasFallDirection)
-                    data >> mi->jump.xyspeed;
+                if (movementStatus.Fall && movementStatus.Fall->Velocity)
+                    data >> movementStatus.Fall->Velocity->Speed;
                 break;
             case MSESplineElevation:
-                if (hasSplineElevation)
-                    data >> mi->splineElevation;
+                if (hasStepUpStartElevation)
+                    data >> movementStatus.StepUpStartElevation;
                 break;
             case MSECounter:
-                data.read_skip<uint32>();   /// @TODO: Maybe compare it with m_movementCounter to verify that packets are sent & received in order?
+                data >> movementStatus.MoveIndex;
                 break;
             case MSEZeroBit:
             case MSEOneBit:
                 data.ReadBit();
                 break;
             case MSEExtraElement:
-                extras->ReadNextElement(data);
+                extraStatusElements->ReadNextElement(data);
                 break;
             default:
                 ASSERT(Movement::PrintInvalidSequenceElement(element, __FUNCTION__));
@@ -28129,10 +28122,7 @@ void Player::ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::Ext
         }
     }
 
-    mi->guid = guid;
-    mi->transport.guid = tguid;
-
-    ValidateMovementInfo(mi);
+    SanitizeMovementStatus(movementStatus);
 }
 
 void Player::SendSupercededSpell(uint32 oldSpell, uint32 newSpell) const

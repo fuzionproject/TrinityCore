@@ -746,6 +746,8 @@ class TC_GAME_API WorldSession
         void HandleSuspendTokenResponse(WorldPackets::Movement::SuspendTokenResponse& suspendTokenResponse);
 
         void HandleMovementOpcodes(WorldPacket& recvPacket);
+        void ProcessMovementStatusUpdate(uint16 opcode, MovementStatus& movementStatus);
+
         void HandleMovementOpcode(uint16 opcode, MovementInfo& movementInfo);
         void HandleSetActiveMoverOpcode(WorldPackets::Movement::SetActiveMover& packet);
         void HandleMoveNotActiveMover(WorldPacket& recvData);

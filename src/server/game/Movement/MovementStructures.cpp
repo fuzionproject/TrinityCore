@@ -106,7 +106,7 @@ MovementStatusElements const MovementFallLand[] =
     MSEHasOrientation,
     MSEHasGuidByte6,
     MSEHasTimestamp,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasPitch,
     MSEHasGuidByte4,
     MSEHasSpline,
@@ -184,7 +184,7 @@ MovementStatusElements const MovementHeartBeat[] =
     MSEHasGuidByte3,
     MSEHasSplineElevation,
     MSEHasSpline,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte6,
     MSEHasMovementFlags,
     MSEHasVehicleId,
@@ -257,7 +257,7 @@ MovementStatusElements const MovementJump[] =
     MSEHasOrientation,
     MSEHasGuidByte1,
     MSEHasSplineElevation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte2,
     MSEHasTransportGuidByte3,
     MSEHasTransportGuidByte7,
@@ -329,7 +329,7 @@ MovementStatusElements const MovementSetFacing[] =
     MSEHasSplineElevation,
     MSEHasMovementFlags,
     MSEHasGuidByte3,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasVehicleId,
     MSEHasTransportGuidByte3,
@@ -399,7 +399,7 @@ MovementStatusElements const MovementSetPitch[] =
     MSEHasGuidByte4,
     MSEHasSpline,
     MSEHasGuidByte2,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasTimestamp,
     MSEHasGuidByte0,
     MSEHasGuidByte5,
@@ -464,7 +464,7 @@ MovementStatusElements const MovementStartBackward[] =
     MSEHasTimestamp,
     MSEHasGuidByte7,
     MSEHasPitch,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags,
     MSEHasOrientation,
     MSEHasSpline,
@@ -532,7 +532,7 @@ MovementStatusElements const MovementStartForward[] =
     MSEHasGuidByte5,
     MSEHasGuidByte2,
     MSEHasGuidByte0,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags,
     MSEHasGuidByte7,
     MSEHasGuidByte3,
@@ -607,7 +607,7 @@ MovementStatusElements const MovementStartStrafeLeft[] =
     MSEHasGuidByte6,
     MSEHasTimestamp,
     MSEHasGuidByte1,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte4,
     MSEHasGuidByte0,
     MSEHasGuidByte2,
@@ -678,7 +678,7 @@ MovementStatusElements const MovementStartStrafeRight[] =
     MSEHasOrientation,
     MSEHasGuidByte4,
     MSEHasSpline,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasFallData,
     MSEHasSplineElevation,
@@ -745,7 +745,7 @@ MovementStatusElements const MovementStartTurnLeft[] =
     MSEPositionY,
     MSEPositionX,
     MSEPositionZ,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasOrientation,
     MSEHasSpline,
@@ -825,7 +825,7 @@ MovementStatusElements const MovementStartTurnRight[] =
     MSEHasOrientation,
     MSEHasTransportData,
     MSEHasGuidByte7,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags2,
     MSEHasGuidByte1,
     MSEHasTimestamp,
@@ -903,7 +903,7 @@ MovementStatusElements const MovementStop[] =
     MSEHasTimestamp,
     MSEHasGuidByte4,
     MSEHasGuidByte1,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte2,
     MSEHasGuidByte0,
     MSEHasPitch,
@@ -974,7 +974,7 @@ MovementStatusElements const MovementStopStrafe[] =
     MSEHasMovementFlags,
     MSEHasSpline,
     MSEHasGuidByte0,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte6,
     MSEHasGuidByte5,
     MSEHasGuidByte1,
@@ -1036,7 +1036,7 @@ MovementStatusElements const MovementStopTurn[] =
     MSEHasGuidByte5,
     MSEHasGuidByte4,
     MSEHasFallData,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasGuidByte0,
     MSEHasSpline,
@@ -1108,7 +1108,7 @@ MovementStatusElements const MovementStartAscend[] =
     MSEHasGuidByte0,
     MSEHasGuidByte1,
     MSEHasGuidByte7,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasTransportData,
     MSEHasGuidByte2,
@@ -1186,7 +1186,7 @@ MovementStatusElements const MovementStartDescend[] =
     MSEHasMovementFlags2,
     MSEHasMovementFlags,
     MSEHasGuidByte6,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasTransportData,
     MSEHasSpline,
@@ -1253,7 +1253,7 @@ MovementStatusElements const MovementStartSwim[] =
     MSEHasSplineElevation,
     MSEHasGuidByte4,
     MSEHasGuidByte7,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasPitch,
     MSEHasGuidByte0,
     MSEHasOrientation,
@@ -1334,7 +1334,7 @@ MovementStatusElements const MovementStopSwim[] =
     MSEHasGuidByte6,
     MSEHasTransportData,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasTimestamp,
     MSEHasGuidByte1,
     MSEHasGuidByte0,
@@ -1400,7 +1400,7 @@ MovementStatusElements const MovementStopAscend[] =
     MSEHasOrientation,
     MSEHasPitch,
     MSEHasSpline,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasGuidByte4,
     MSEHasMovementFlags,
@@ -1475,7 +1475,7 @@ MovementStatusElements const MovementStopPitch[] =
     MSEHasPitch,
     MSEHasSpline,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags2,
     MSEHasSplineElevation,
     MSEHasGuidByte6,
@@ -1541,7 +1541,7 @@ MovementStatusElements const MovementStartPitchDown[] =
     MSEHasGuidByte7,
     MSEHasGuidByte6,
     MSEHasPitch,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasGuidByte4,
     MSEHasTimestamp,
@@ -1616,7 +1616,7 @@ MovementStatusElements const MovementStartPitchUp[] =
     MSEHasGuidByte2,
     MSEHasGuidByte6,
     MSEHasGuidByte3,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasSplineElevation,
     MSEHasFallData,
     MSEHasGuidByte0,
@@ -1692,7 +1692,7 @@ MovementStatusElements const MoveChngTransport[]=
     MSEHasGuidByte5,
     MSEHasGuidByte7,
     MSEHasPitch,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte3,
     MSEHasSplineElevation,
     MSEHasGuidByte1,
@@ -1764,7 +1764,7 @@ MovementStatusElements const MoveSplineDone[] =
     MSEHasGuidByte3,
     MSEHasMovementFlags,
     MSEHasGuidByte0,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasGuidByte5,
     MSEHasPitch,
@@ -1837,7 +1837,7 @@ MovementStatusElements const MoveNotActiveMover[] =
     MSEHasGuidByte6,
     MSEHasSplineElevation,
     MSEHasGuidByte3,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasTimestamp,
     MSEHasGuidByte0,
     MSEHasOrientation,
@@ -1924,7 +1924,7 @@ MovementStatusElements const DismissControlledVehicle[] =
     MSEHasPitch,
     MSEHasTimestamp,
     MSEHasGuidByte1,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasSpline,
     MSEHasGuidByte3,
     MSEHasMovementFlags,
@@ -1997,7 +1997,7 @@ MovementStatusElements const MovementSetRunMode[] =
     MSEHasMovementFlags,
     MSEHasGuidByte7,
     MSEHasTransportData,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte0,
     MSEHasGuidByte3,
     MSEHasSplineElevation,
@@ -2077,7 +2077,7 @@ MovementStatusElements const MovementSetWalkMode[] =
     MSEHasGuidByte2,
     MSEHasGuidByte5,
     MSEHasGuidByte3,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags2,
     MSEHasFallData,
     MSEHasTransportGuidByte2,
@@ -2150,7 +2150,7 @@ MovementStatusElements const MovementSetCanFly[] =
     MSEHasSpline,
     MSEHasOrientation,
     MSEHasGuidByte7,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasPitch,
     MSEHasTransportGuidByte3,
     MSEHasTransportTime2,
@@ -2215,7 +2215,7 @@ MovementStatusElements const MovementSetCanTransitionBetweenSwimAndFlyAck[] =
     MSEHasSplineElevation,
     MSEHasTimestamp,
     MSEHasSpline,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasFallData,
     MSEHasGuidByte5,
     MSEHasGuidByte0,
@@ -2284,7 +2284,7 @@ MovementStatusElements const MovementUpdateSwimSpeed[] =
     MSEHasFallData,
     MSEHasGuidByte3,
     MSEHasTransportData,
-    MSEZeroBit, // height_change_failed
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte7,
     MSEHasFallDirection,
     MSEHasTransportGuidByte4,
@@ -2384,7 +2384,7 @@ MovementStatusElements const MovementUpdateRunSpeed[] =
     MSEHasFallData,
     MSEHasFallDirection,
     MSEHasGuidByte4,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEFlushBits,
     MSETransportGuidByte4,
     MSETransportGuidByte5,
@@ -2430,7 +2430,7 @@ MovementStatusElements const MovementUpdateFlightSpeed[] =
     MSEPositionZ,
     MSEHasMovementFlags,
     MSEHasGuidByte4,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasGuidByte1,
     MSEMovementFlags,
@@ -2589,7 +2589,7 @@ MovementStatusElements const MovementForceRunSpeedChangeAck[] =
     MSEHasTimestamp,
     MSEHasMovementFlags2,
     MSEHasGuidByte6,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasSplineElevation,
     MSEHasPitch,
     MSEHasGuidByte5,
@@ -2653,8 +2653,7 @@ MovementStatusElements const MovementSetCollisionHeightAck[] =
     MSEPositionY,
     MSEHasGuidByte6,
     MSEHasGuidByte4,
-    MSEZeroBit, // Reason bit 1 
-    MSEZeroBit, // Reason bit 2
+    MSEExtraElement,
     MSEHasPitch,
     MSEHasGuidByte5,
     MSEHasHeightChangeFailed,
@@ -2729,7 +2728,7 @@ MovementStatusElements const MovementForceFlightSpeedChangeAck[] =
     MSEExtraElement,
     MSEHasGuidByte4,
     MSEHasGuidByte5,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags,
     MSEHasSplineElevation,
     MSEHasGuidByte3,
@@ -2810,7 +2809,7 @@ MovementStatusElements const MovementSetCanFlyAck[] =
     MSEHasGuidByte5,
     MSEHasSplineElevation,
     MSEHasMovementFlags2,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte7,
     MSEHasSpline,
     MSEHasGuidByte6,
@@ -2886,7 +2885,7 @@ MovementStatusElements MoveForceSwimBackSpeedChangeAck[] =
     MSEHasGuidByte3,
     MSEHasSpline,
     MSEHasTimestamp,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags2,
     MSEHasGuidByte4,
     MSEHasGuidByte1,
@@ -2949,7 +2948,6 @@ MovementStatusElements MoveForceSwimBackSpeedChangeAck[] =
     MSEEnd,
 };
 
-//4.3.4
 MovementStatusElements MoveForceFlightBackSpeedChangeAck[] =
 {
     MSEPositionY,
@@ -2963,7 +2961,7 @@ MovementStatusElements MoveForceFlightBackSpeedChangeAck[] =
     MSEHasSpline,
     MSEHasGuidByte7,
     MSEHasGuidByte4,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte1,
     MSEHasOrientation,
     MSEHasMovementFlags,
@@ -3051,7 +3049,7 @@ MovementStatusElements const MovementForceSwimSpeedChangeAck[] =
     MSEHasGuidByte2,
     MSEHasGuidByte7,
     MSEHasTimestamp,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasGuidByte6,
     MSEHasSplineElevation,
@@ -3106,7 +3104,6 @@ MovementStatusElements const MovementForceSwimSpeedChangeAck[] =
     MSEEnd,
 };
 
-
 MovementStatusElements const MovementForceWalkSpeedChangeAck[] =
 {
     MSEPositionZ,
@@ -3124,7 +3121,7 @@ MovementStatusElements const MovementForceWalkSpeedChangeAck[] =
     MSEHasFallData,
     MSEHasOrientation,
     MSEHasSpline,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte3,
     MSEHasGuidByte1,
     MSEHasSplineElevation,
@@ -3205,7 +3202,7 @@ MovementStatusElements const MovementForceRunBackSpeedChangeAck[] =
     MSEHasPitch,
     MSEHasGuidByte6,
     MSEHasSplineElevation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasTransportGuidByte3,
     MSEHasTransportTime2,
     MSEHasTransportGuidByte7,
@@ -3263,7 +3260,7 @@ MovementStatusElements const MovementUpdateRunBackSpeed[] =
     MSEHasGuidByte3,
     MSEHasGuidByte6,
     MSEHasGuidByte0,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags,
     MSEHasGuidByte5,
     MSEHasOrientation,
@@ -3319,7 +3316,7 @@ MovementStatusElements const MovementUpdateRunBackSpeed[] =
 MovementStatusElements const MovementUpdateWalkSpeed[] =
 {
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte3,
     MSEHasGuidByte2,
     MSEHasTransportGuidByte6,
@@ -3399,7 +3396,7 @@ MovementStatusElements const ForceMoveRootAck[] =
     MSEHasGuidByte7,
     MSEHasMovementFlags2,
     MSEHasMovementFlags,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasTransportGuidByte6,
     MSEHasTransportGuidByte0,
@@ -3461,7 +3458,7 @@ MovementStatusElements const ForceMoveUnrootAck[] =
     MSEHasSpline,
     MSEHasGuidByte5,
     MSEHasGuidByte4,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasTimestamp,
     MSEHasMovementFlags,
     MSEHasOrientation,
@@ -3523,7 +3520,6 @@ MovementStatusElements const ForceMoveUnrootAck[] =
     MSEEnd,
 };
 
-//4.3.4
 MovementStatusElements MoveUpdateSwimBackSpeed[] =
 {
     MSEHasGuidByte7,
@@ -3542,7 +3538,7 @@ MovementStatusElements MoveUpdateSwimBackSpeed[] =
     MSEHasVehicleId,
     MSEHasPitch,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasGuidByte3,
     MSEHasGuidByte6,
@@ -3606,7 +3602,7 @@ MovementStatusElements const MovementFallReset[] =
     MSEHasGuidByte1,
     MSEHasTimestamp,
     MSEHasMovementFlags,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte6,
     MSEHasSplineElevation,
     MSEHasPitch,
@@ -3676,7 +3672,7 @@ MovementStatusElements const MovementFeatherFallAck[] =
     MSECounter,
     MSEPositionY,
     MSEPositionX,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte3,
     MSEHasSplineElevation,
     MSEHasGuidByte1,
@@ -3763,7 +3759,7 @@ MovementStatusElements const MovementGravityDisableAck[] =
     MSEHasTimestamp,
     MSEHasPitch,
     MSEHasMovementFlags2,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte2,
     MSEHasFallData,
     MSEHasGuidByte1,
@@ -3826,7 +3822,7 @@ MovementStatusElements const MovementGravityEnableAck[] =
     MSEHasMovementFlags2,
     MSEHasGuidByte6,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte5,
     MSEHasSpline,
     MSEHasGuidByte3,
@@ -3907,7 +3903,7 @@ MovementStatusElements const MovementHoverAck[] =
     MSEHasGuidByte6,
     MSEHasGuidByte7,
     MSEHasGuidByte5,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasFallData,
     MSEHasMovementFlags2,
     MSEHasSplineElevation,
@@ -3978,7 +3974,7 @@ MovementStatusElements const MovementKnockBackAck[] =
     MSEHasGuidByte2,
     MSEHasSpline,
     MSEHasGuidByte7,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasMovementFlags2,
     MSEHasTimestamp,
     MSEHasGuidByte0,
@@ -4056,7 +4052,7 @@ MovementStatusElements const MovementWaterWalkAck[] =
     MSEHasGuidByte6,
     MSEHasFallData,
     MSEHasGuidByte4,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasSplineElevation,
     MSEHasSpline,
     MSEHasTransportGuidByte0,
@@ -4110,7 +4106,7 @@ MovementStatusElements const MovementWaterWalkAck[] =
 
 MovementStatusElements const MovementUpdateKnockBack[] =
 {
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasGuidByte4,
     MSEHasMovementFlags,
     MSEHasGuidByte1,
@@ -5143,7 +5139,7 @@ MovementStatusElements const ChangeSeatsOnControlledVehicle[] =
     MSEExtraElement,
     MSEExtraElement,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEExtraElement,
     MSEHasGuidByte7,
     MSEExtraElement,
@@ -5226,7 +5222,7 @@ MovementStatusElements const CastSpellEmbeddedMovement[] =
     MSEHasFallData,
     MSEHasTimestamp,
     MSEHasOrientation,
-    MSEZeroBit,
+    MSEHasHeightChangeFailed,
     MSEHasSpline,
     MSEHasGuidByte6,
     MSEHasGuidByte4,
@@ -5342,7 +5338,7 @@ MovementStatusElements const MoveUpdateFlightBackSpeed[] =
     MSEPositionZ,
     MSEHasGuidByte6,
     MSEHasGuidByte4,
-    MSEHasPitch,
+    MSEHasSpline,
     MSEHasGuidByte7,
     MSEHasGuidByte1,
     MSEHasTransportData,
@@ -5351,11 +5347,10 @@ MovementStatusElements const MoveUpdateFlightBackSpeed[] =
     MSEHasTransportGuidByte7,
     MSEHasTransportGuidByte6,
     MSEHasTransportGuidByte0,
-    MSEOneBit, // has_transport_time
-    MSEHasTransportGuidByte2,
-    MSEHasTransportGuidByte3,
-    MSEHasTransportGuidByte5,
     MSEHasTransportTime2,
+    MSEHasTransportGuidByte2,
+    MSEHasTransportGuidByte5,
+    MSEHasTransportGuidByte3,
     MSEHasTransportGuidByte1,
     MSEHasGuidByte5,
     MSEHasGuidByte0,
@@ -5364,7 +5359,7 @@ MovementStatusElements const MoveUpdateFlightBackSpeed[] =
     MSEMovementFlags,
     MSEHasGuidByte3,
     MSEHasMovementFlags2,
-    MSEZeroBit, // height_change_failed
+    MSEHasHeightChangeFailed,
     MSEHasSplineElevation,
     MSEMovementFlags2,
     MSEHasGuidByte2,
@@ -5389,6 +5384,7 @@ MovementStatusElements const MoveUpdateFlightBackSpeed[] =
     MSETransportGuidByte6,
     MSETransportGuidByte0,
     MSETransportGuidByte2,
+    MSETransportTime2,
     MSETransportPositionY,
     MSETransportGuidByte4,
     MSEGuidByte1,
@@ -5482,6 +5478,9 @@ void Movement::ExtraMovementStatusElement::ReadNextElement(ByteBuffer& packet)
         case MSEExtraInt8:
             packet >> Data.byteData;
             break;
+        case MSEExtraByteTwoBits:
+            Data.byteData = packet.ReadBits(2);
+            break;
         default:
             ASSERT(PrintInvalidSequenceElement(element, __FUNCTION__));
             break;
@@ -5520,6 +5519,9 @@ void Movement::ExtraMovementStatusElement::WriteNextElement(ByteBuffer& packet)
         case MSEExtraInt8:
             packet << Data.byteData;
             break;
+        case MSEExtraByteTwoBits:
+            packet.WriteBits(Data.byteData, 2);
+            break;
         default:
             ASSERT(PrintInvalidSequenceElement(element, __FUNCTION__));
             break;
@@ -5556,7 +5558,7 @@ void Movement::PacketSender::Send() const
         if (isPlayerMovement && _selfOpcode != NULL_OPCODE)
         {
             WorldPacket data(_selfOpcode);
-            _unit->WriteMovementInfo(data, _extraElements);
+            _unit->WriteMovementStatusData(data, _extraElements);
             player->SendDirectMessage(&data);
         }
     }
@@ -5568,7 +5570,7 @@ void Movement::PacketSender::Send() const
             _extraElements->ResetIndex();
 
         WorldPacket data(_broadcast);
-        _unit->WriteMovementInfo(data, _extraElements);
+        _unit->WriteMovementStatusData(data, _extraElements);
         _unit->SendMessageToSet(&data, !isPlayerMovement);
     }
 }

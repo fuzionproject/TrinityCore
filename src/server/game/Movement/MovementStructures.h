@@ -94,7 +94,6 @@ enum MovementStatusElements
     MSEFallSinAngle,
     MSEFallHorizontalSpeed,
     MSESplineElevation,
-
     MSECounter,
 
     // Special
@@ -106,6 +105,7 @@ enum MovementStatusElements
                         // Allowed internal elements are: GUID markers (not transport), MSEExtraFloat, MSEExtraInt8
     MSEExtraFloat,
     MSEExtraInt8,
+    MSEExtraByteTwoBits
 };
 
 namespace Movement

@@ -186,14 +186,7 @@ bool Pet::LoadPetData(Player* owner, uint32 petEntry, uint32 petnumber, bool cur
 
         Transport* transport = GetTransGUID().IsEmpty() ? owner->GetTransport() : nullptr;
         if (transport)
-        {
-            float x, y, z, o;
-            GetPosition(x, y, z, o);
-            transport->CalculatePassengerOffset(x, y, z, &o);
-            m_movementInfo.transport.pos.Relocate(x, y, z, o);
-
             transport->AddPassenger(this);
-        }
 
         map->AddToMap(this->ToCreature());
         return true;
@@ -284,14 +277,7 @@ bool Pet::LoadPetData(Player* owner, uint32 petEntry, uint32 petnumber, bool cur
 
     Transport* transport = GetTransGUID().IsEmpty() ? owner->GetTransport() : nullptr;
     if (transport)
-    {
-        float x, y, z, o;
-        GetPosition(x, y, z, o);
-        transport->CalculatePassengerOffset(x, y, z, &o);
-        m_movementInfo.transport.pos.Relocate(x, y, z, o);
-
         transport->AddPassenger(this);
-    }
 
     owner->SetMinion(this, true);
     map->AddToMap(ToCreature());
@@ -691,14 +677,7 @@ bool Pet::CreateBaseAtCreature(Creature* creature)
 
     Transport* transport = GetTransGUID().IsEmpty() ? creature->GetTransport() : nullptr;
     if (transport)
-    {
-        float x, y, z, o;
-        GetPosition(x, y, z, o);
-        transport->CalculatePassengerOffset(x, y, z, &o);
-        m_movementInfo.transport.pos.Relocate(x, y, z, o);
-
         transport->AddPassenger(this);
-    }
 
     return true;
 }
@@ -715,14 +694,7 @@ bool Pet::CreateBaseAtCreatureInfo(CreatureTemplate const* cinfo, Unit* owner)
 
     Transport* transport = GetTransGUID().IsEmpty() ? owner->GetTransport() : nullptr;
     if (transport)
-    {
-        float x, y, z, o;
-        GetPosition(x, y, z, o);
-        transport->CalculatePassengerOffset(x, y, z, &o);
-        m_movementInfo.transport.pos.Relocate(x, y, z, o);
-
         transport->AddPassenger(this);
-    }
 
     return true;
 }

@@ -66,7 +66,7 @@ namespace WorldPackets
             int32 Misc = 0;
             SpellTargetData Target;
             MissileTrajectoryRequest MissileTrajectory;
-            Optional<MovementInfo> MoveUpdate;
+            Optional<MovementStatus> MoveUpdate;
             std::vector<SpellWeight> Weight;
         };
     }

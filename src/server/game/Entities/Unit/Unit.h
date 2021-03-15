@@ -1172,9 +1172,9 @@ class TC_GAME_API Unit : public WorldObject
         void SendSetPlayHoverAnim(bool enable);
         void SendMovementSetSplineAnim(AnimationTier anim);
 
-        bool IsGravityDisabled() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY); }
-        bool IsWalking() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_WALKING); }
-        bool IsHovering() const { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_HOVER); }
+        bool IsGravityDisabled() const { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY); }
+        bool IsWalking() const { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_WALKING); }
+        bool IsHovering() const { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_HOVER); }
         bool SetWalk(bool enable);
         virtual bool SetDisableGravity(bool disable, bool packetOnly = false, bool updateAnimationTier = true);
         bool SetFall(bool enable);
@@ -1631,17 +1631,17 @@ class TC_GAME_API Unit : public WorldObject
         void PauseMovement(uint32 timer = 0, uint8 slot = 0, bool forced = true); // timer in ms
         void ResumeMovement(uint32 timer = 0, uint8 slot = 0); // timer in ms
 
-        void AddUnitMovementFlag(uint32 f) { m_movementInfo.AddMovementFlag(f); }
-        void RemoveUnitMovementFlag(uint32 f) { m_movementInfo.RemoveMovementFlag(f); }
-        bool HasUnitMovementFlag(uint32 f) const { return m_movementInfo.HasMovementFlag(f); }
-        uint32 GetUnitMovementFlags() const { return m_movementInfo.GetMovementFlags(); }
-        void SetUnitMovementFlags(uint32 f) { m_movementInfo.SetMovementFlags(f); }
+        void AddUnitMovementFlag(MovementFlags f) { _movementStatus.AddMovementFlag(f); }
+        void AddUnitMovementFlag(MovementFlags2 f) { _movementStatus.AddMovementFlag(f); }
+        void RemoveUnitMovementFlag(MovementFlags f) { _movementStatus.RemoveMovementFlag(f); }
+        void RemoveUnitMovementFlag(MovementFlags2 f) { _movementStatus.RemoveMovementFlag(f); }
+        void SetUnitMovementFlag(MovementFlags f) { _movementStatus.SetMovementFlag(f); }
+        void SetUnitMovementFlag(MovementFlags2 f) { _movementStatus.SetMovementFlag(f); }
+        bool HasUnitMovementFlag(MovementFlags f) const { return _movementStatus.HasMovementFlag(f); }
+        bool HasUnitMovementFlag(MovementFlags2 f) const { return _movementStatus.HasMovementFlag(f); }
+        uint32 GetUnitMovementFlags() const { return _movementStatus.GetMovementFlags(); }
+        uint32 GetUnitMovementFlags2() const { return _movementStatus.GetMovementFlags2(); }
 
-        void AddExtraUnitMovementFlag(uint16 f) { m_movementInfo.AddExtraMovementFlag(f); }
-        void RemoveExtraUnitMovementFlag(uint16 f) { m_movementInfo.RemoveExtraMovementFlag(f); }
-        uint16 HasExtraUnitMovementFlag(uint16 f) const { return m_movementInfo.HasExtraMovementFlag(f); }
-        uint16 GetExtraUnitMovementFlags() const { return m_movementInfo.GetExtraMovementFlags(); }
-        void SetExtraUnitMovementFlags(uint16 f) { m_movementInfo.SetExtraMovementFlags(f); }
         bool IsSplineEnabled() const;
 
         void SetControlled(bool apply, UnitState state);
@@ -1700,12 +1700,12 @@ class TC_GAME_API Unit : public WorldObject
         void _ExitVehicle(Position const* exitPosition = nullptr);
         void _EnterVehicle(Vehicle* vehicle, int8 seatId, AuraApplication const* aurApp = nullptr);
 
-        void WriteMovementInfo(WorldPacket& data, Movement::ExtraMovementStatusElement* extras = nullptr);
+        void WriteMovementStatusData(WorldPacket& data, Movement::ExtraMovementStatusElement* extras = nullptr);
 
-        bool isMoving() const   { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_MASK_MOVING); }
-        bool isTurning() const  { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_MASK_TURNING); }
+        bool isMoving() const   { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_MASK_MOVING); }
+        bool isTurning() const  { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_MASK_TURNING); }
         virtual bool CanFly() const = 0;
-        bool IsFlying() const   { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_DISABLE_GRAVITY); }
+        bool IsFlying() const   { return _movementStatus.HasMovementFlag(MovementFlags(MOVEMENTFLAG_FLYING | MOVEMENTFLAG_DISABLE_GRAVITY)); }
         bool IsFalling() const;
         virtual bool CanEnterWater() const = 0;
         virtual bool CanSwim() const;

@@ -33,12 +33,6 @@ namespace WorldPackets
 {
     namespace Movement
     {
-        struct MovementAck
-        {
-            MovementInfo Status;
-            int32 AckIndex = 0;
-        };
-
         struct ShipTransferPending
         {
             uint32 ID = 0;              ///< gameobject_template.entry of the transport the player is teleporting on
@@ -172,7 +166,8 @@ namespace WorldPackets
 
             WorldPacket const* Write() override;
 
-            MovementInfo* Status = nullptr;
+            MovementStatus Status;
+            bool HasSplineData = false;
         };
 
         struct MonsterSplineJumpExtraData
@@ -247,6 +242,16 @@ namespace WorldPackets
             uint32 MapID = 0;
             uint8 TransfertAbort = 0;
             uint8 Arg = 0;
+        };
+
+        class MovementUpdate final : public ServerPacket
+        {
+        public:
+            MovementUpdate() : ServerPacket(SMSG_MOVE_UPDATE) { }
+
+            WorldPacket const* Write() override;
+
+            MovementStatus Status;
         };
     }
 

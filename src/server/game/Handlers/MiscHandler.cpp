@@ -1452,10 +1452,10 @@ void WorldSession::HandleMoveSetCanFlyAckOpcode(WorldPacket& recvData)
     // fly mode on/off
     TC_LOG_DEBUG("network", "WORLD: CMSG_MOVE_SET_CAN_FLY_ACK");
 
-    MovementInfo movementInfo;
-    _player->ReadMovementInfo(recvData, &movementInfo);
+    MovementStatus movementStatus;
+    _player->ExtractMovementStatusFromPacket(recvData, movementStatus);
 
-    _player->m_unitMovedByMe->m_movementInfo.flags = movementInfo.GetMovementFlags();
+    _player->m_unitMovedByMe->_movementStatus.MovementFlags0 = movementStatus.GetMovementFlags();
 }
 
 void WorldSession::HandleSetTaxiBenchmarkOpcode(WorldPacket& recvData)

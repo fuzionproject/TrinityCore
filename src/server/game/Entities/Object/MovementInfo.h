@@ -15,106 +15,67 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef MovementInfo_h__
-#define MovementInfo_h__
+#ifndef MovementStatus_h__
+#define MovementStatus_h__
 
+#include "G3D/Vector2.h"
 #include "ObjectGuid.h"
+#include "Optional.h"
 #include "Position.h"
 
-struct MovementInfo
+enum MovementFlags : uint32;
+enum MovementFlags2 : uint32;
+
+struct MovementTransportData
 {
-    // common
-    ObjectGuid guid;
-    uint32 flags;
-    uint16 flags2;
-    Position pos;
-    uint32 time;
-
-    // transport
-    struct TransportInfo
-    {
-        void Reset()
-        {
-            guid.Clear();
-            pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-            seat = -1;
-            time = 0;
-            time2 = 0;
-            vehicleId = 0;
-        }
-
-        ObjectGuid guid;
-        Position pos;
-        int8 seat;
-        uint32 time;
-        uint32 time2;
-        uint32 vehicleId;
-    } transport;
-
-    // swimming/flying
-    float pitch;
-
-    // jumping
-    struct JumpInfo
-    {
-        void Reset()
-        {
-            fallTime = 0;
-            zspeed = sinAngle = cosAngle = xyspeed = 0.0f;
-        }
-
-        uint32 fallTime;
-
-        float zspeed, sinAngle, cosAngle, xyspeed;
-
-    } jump;
-
-    // spline
-    float splineElevation;
-
-    // height change
-    bool heightChangeFailed;
-
-    MovementInfo() :
-        flags(0), flags2(0), time(0), pitch(0.0f), splineElevation(0.0f), heightChangeFailed(false)
-    {
-        pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-        transport.Reset();
-        jump.Reset();
-    }
-
-    uint32 GetMovementFlags() const { return flags; }
-    void SetMovementFlags(uint32 flag) { flags = flag; }
-    void AddMovementFlag(uint32 flag) { flags |= flag; }
-    void RemoveMovementFlag(uint32 flag) { flags &= ~flag; }
-    bool HasMovementFlag(uint32 flag) const { return (flags & flag) != 0; }
-
-    uint16 GetExtraMovementFlags() const { return flags2; }
-    void SetExtraMovementFlags(uint16 flag) { flags2 = flag; }
-    void AddExtraMovementFlag(uint16 flag) { flags2 |= flag; }
-    void RemoveExtraMovementFlag(uint16 flag) { flags2 &= ~flag; }
-    bool HasExtraMovementFlag(uint16 flag) const { return (flags2 & flag) != 0; }
-
-    uint32 GetFallTime() const { return jump.fallTime; }
-    void SetFallTime(uint32 time) { jump.fallTime = time; }
-
-    void ResetTransport();
-    void ResetJump();
-    bool HasFallDirection() const;
-    bool HasFallData() const;
-    bool HasMovementFlags() const;
-    bool HasExtraMovementFlags() const;
-    bool HasSpline() const;
-    bool HasHeightChangeFailed() const;
-    bool HasTime() const;
-    bool HasOrientation() const;
-    bool HasSplineElevation() const;
-    bool HasPitch() const;
-    bool HasTransportData() const;
-    bool HasTransportVehicleId() const;
-    bool HasTransportTime2() const;
-
-    void OutDebug();
+    Position Pos;
+    ObjectGuid Guid;
+    uint8 VehicleSeatIndex = 0;
+    uint32 MoveTime = 0;
+    Optional<uint32> PrevMoveTime;
+    Optional<int32> VehicleRecID;
 };
 
-#endif // MovementInfo_h__
+struct MovementFallVelocity
+{
+    G3D::Vector2 Direction;
+    float Speed = 0.0f;
+};
+
+struct MovementFallOrLandData
+{
+    uint32 Time = 0;
+    float JumpVelocity = 0.0f;
+    Optional<MovementFallVelocity> Velocity;
+};
+
+struct MovementStatus
+{
+    Position Pos;
+    ObjectGuid MoverGUID;
+    uint32 MovementFlags0 = 0;
+    uint32 MovementFlags1 = 0;
+    uint32 MoveTime = 0;
+    uint32 MoveIndex = 0;
+    float Pitch = 0.f;
+    float StepUpStartElevation = 0.f;
+    bool HeightChangeFailed = false;
+    bool HasSpline = false;
+
+    Optional<MovementTransportData> Transport;
+    Optional<MovementFallOrLandData> Fall;
+
+    // Helpers
+    bool HasMovementFlag(MovementFlags flag) const { return (MovementFlags0 & flag) != 0; }
+    bool HasMovementFlag(MovementFlags2 flag) const { return (MovementFlags1 & flag) != 0; }
+    void RemoveMovementFlag(MovementFlags flag) { MovementFlags0 &= ~flag; }
+    void RemoveMovementFlag(MovementFlags2 flag) { MovementFlags1 &= ~flag; }
+    void AddMovementFlag(MovementFlags flag) { MovementFlags0 |= flag; };
+    void AddMovementFlag(MovementFlags2 flag) { MovementFlags1 |= flag; };
+    void SetMovementFlag(MovementFlags flag) { MovementFlags0 = flag; };
+    void SetMovementFlag(MovementFlags2 flag) { MovementFlags1 = flag; };
+    uint32 GetMovementFlags() const { return MovementFlags0; }
+    uint32 GetMovementFlags2() const { return MovementFlags1; }
+};
+
+#endif // MovementStatus_h__

@@ -65,19 +65,17 @@ void Transport::AddPassenger(WorldObject* passenger)
     if (_passengers.insert(passenger).second)
     {
         passenger->SetTransport(this);
-        passenger->m_movementInfo.transport.guid = GetGUID();
-        passenger->m_movementInfo.transport.time = GetTimer();
+        MovementTransportData& transport = passenger->_movementStatus.Transport.emplace();
 
-        if (passenger->GetTypeId() == TYPEID_UNIT)
-        {
-            float x, y, z, o;
-            passenger->GetPosition(x, y, z, o);
-            TransportBase::CalculatePassengerOffset(x, y, z, &o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation());
-            passenger->m_movementInfo.transport.pos.Relocate(x, y, z, o);
+        transport.Guid = GetGUID();
+        transport.MoveTime = GetTimer();
+        float x, y, z, o;
+        passenger->GetPosition(x, y, z, o);
+        TransportBase::CalculatePassengerOffset(x, y, z, &o, GetPositionX(), GetPositionY(), GetPositionZ(), GetOrientation());
+        transport.Pos.Relocate(x, y, z, o);
 
-            if (IsInWorld() && passenger->IsInWorld())
-                UpdatePositionForPassenger(passenger);
-        }
+        if (IsInWorld() && passenger->IsInWorld())
+            UpdatePositionForPassenger(passenger);
 
         TC_LOG_DEBUG("entities.transport", "Object %s boarded transport %s.", passenger->GetName().c_str(), GetName().c_str());
 
@@ -129,7 +127,7 @@ void Transport::RemovePassenger(WorldObject* passenger)
     if (erased)
     {
         passenger->SetTransport(nullptr);
-        passenger->m_movementInfo.transport.Reset();
+        passenger->_movementStatus.Transport.reset();
         TC_LOG_DEBUG("entities.transport", "Object %s removed from transport %s.", passenger->GetName().c_str(), GetName().c_str());
 
         if (Unit* unit = passenger->ToUnit())
@@ -449,7 +447,7 @@ void Transport::UpdatePositionForPassenger(WorldObject* passenger)
     // Do not use Unit::UpdatePosition here, we don't want to remove auras
     // as if regular movement occurred
     float x, y, z, o;
-    passenger->m_movementInfo.transport.pos.GetPosition(x, y, z, o);
+    passenger->_movementStatus.Transport->Pos.GetPosition(x, y, z, o);
     CalculatePassengerPosition(x, y, z, &o);
     switch (passenger->GetTypeId())
     {
@@ -725,7 +723,7 @@ void MapTransport::RemovePassenger(WorldObject* passenger)
     if (erased || _staticPassengers.erase(passenger)) // static passenger can remove itself in case of grid unload
     {
         passenger->SetTransport(nullptr);
-        passenger->m_movementInfo.transport.Reset();
+        passenger->_movementStatus.Transport.reset();
         TC_LOG_DEBUG("entities.transport", "Object %s removed from transport %s.", passenger->GetName().c_str(), GetName().c_str());
 
         if (Unit* unit = passenger->ToUnit())
@@ -760,13 +758,14 @@ Creature* MapTransport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureDat
     data->spawnPoint.GetPosition(x, y, z, o);
 
     creature->SetTransport(this);
-    creature->m_movementInfo.transport.guid = GetGUID();
-    creature->m_movementInfo.transport.time = GetTimer();
-    creature->m_movementInfo.transport.pos.Relocate(x, y, z, o);
+    MovementTransportData& transport = creature->_movementStatus.Transport.emplace();
+    transport.Guid = GetGUID();
+    transport.MoveTime = GetTimer();
+    transport.Pos.Relocate(x, y, z, o);
     CalculatePassengerPosition(x, y, z, &o);
     creature->Relocate(x, y, z, o);
     creature->SetHomePosition(creature->GetPositionX(), creature->GetPositionY(), creature->GetPositionZ(), creature->GetOrientation());
-    creature->SetTransportHomePosition(creature->m_movementInfo.transport.pos);
+    creature->SetTransportHomePosition(transport.Pos);
 
     /// @HACK - transport models are not added to map's dynamic LoS calculations
     ///         because the current GameObjectModel cannot be moved without recreating
@@ -819,9 +818,10 @@ GameObject* MapTransport::CreateGOPassenger(ObjectGuid::LowType guid, GameObject
     data->spawnPoint.GetPosition(x, y, z, o);
 
     go->SetTransport(this);
-    go->m_movementInfo.transport.guid = GetGUID();
-    go->m_movementInfo.transport.time = GetTimer();
-    go->m_movementInfo.transport.pos.Relocate(x, y, z, o);
+    MovementTransportData& transport = go->_movementStatus.Transport.emplace();
+    transport.Guid = GetGUID();
+    transport.MoveTime = GetTimer();
+    transport.Pos.Relocate(x, y, z, o);
     CalculatePassengerPosition(x, y, z, &o);
     go->Relocate(x, y, z, o);
     go->RelocateStationaryPosition(x, y, z, o);
@@ -933,9 +933,10 @@ TempSummon* MapTransport::SummonPassenger(uint32 entry, Position const& pos, Tem
     summon->SetUInt32Value(UNIT_CREATED_BY_SPELL, spellId);
 
     summon->SetTransport(this);
-    summon->m_movementInfo.transport.guid = GetGUID();
-    summon->m_movementInfo.transport.pos.Relocate(pos);
-    summon->m_movementInfo.transport.time = GetTimer();
+    MovementTransportData& transport = summon->_movementStatus.Transport.emplace();
+    transport.Guid = GetGUID();
+    transport.MoveTime = GetTimer();
+    transport.Pos.Relocate(pos);
     summon->Relocate(x, y, z, o);
     summon->SetHomePosition(x, y, z, o);
     summon->SetTransportHomePosition(pos);
@@ -1104,7 +1105,7 @@ void MapTransport::DelayedTeleportTransport()
         WorldObject* obj = (*_passengerTeleportItr++);
 
         float destX, destY, destZ, destO;
-        obj->m_movementInfo.transport.pos.GetPosition(destX, destY, destZ, destO);
+        obj->_movementStatus.Transport->Pos.GetPosition(destX, destY, destZ, destO);
         TransportBase::CalculatePassengerPosition(destX, destY, destZ, &destO, x, y, z, o);
 
         switch (obj->GetTypeId())

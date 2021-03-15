@@ -207,8 +207,8 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recvData)
 
     recvData.read_skip<uint32>();                          // unk
 
-    MovementInfo movementInfo;                              // used only for proper packet read
-    _player->ReadMovementInfo(recvData, &movementInfo);
+    MovementStatus movementStatus;                          // used only for proper packet read
+    _player->ExtractMovementStatusFromPacket(recvData, movementStatus);
 
     // in taxi flight packet received in 2 case:
     // 1) end taxi path in far (multi-node) flight

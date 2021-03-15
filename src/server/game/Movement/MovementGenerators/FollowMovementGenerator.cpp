@@ -55,7 +55,7 @@ inline UnitMoveType SelectSpeedType(uint32 moveFlags)
 
 inline bool IsTargetMoving(Unit const* target)
 {
-    return target->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD | MOVEMENTFLAG_BACKWARD | MOVEMENTFLAG_STRAFE_LEFT | MOVEMENTFLAG_STRAFE_RIGHT) || !target->movespline->Finalized();
+    return target->HasUnitMovementFlag(MovementFlags(MOVEMENTFLAG_FORWARD | MOVEMENTFLAG_BACKWARD | MOVEMENTFLAG_STRAFE_LEFT | MOVEMENTFLAG_STRAFE_RIGHT)) || !target->movespline->Finalized();
 }
 
 inline float GetVelocity(Unit* owner, Unit* target, bool catchUp)
@@ -63,7 +63,7 @@ inline float GetVelocity(Unit* owner, Unit* target, bool catchUp)
     float targetSpeed = 0.f;
     float velocity = 0.f;
     if (target->IsPlayer())
-        targetSpeed = target->GetSpeed(SelectSpeedType(target->m_movementInfo.GetMovementFlags()));
+        targetSpeed = target->GetSpeed(SelectSpeedType(target->_movementStatus.GetMovementFlags()));
     else
     {
         if (!target->movespline->Finalized())
@@ -345,7 +345,7 @@ void FollowMovementGenerator::LaunchMovement(Unit* owner)
         return;
 
     // Predicting our follow destination if the owner is slower or equally as fast as the target
-    bool predictDestination = (!_joinFormation && !_catchUpToTarget && velocity < target->GetSpeed(SelectSpeedType(target->m_movementInfo.GetMovementFlags())))
+    bool predictDestination = (!_joinFormation && !_catchUpToTarget && velocity < target->GetSpeed(SelectSpeedType(target->_movementStatus.GetMovementFlags())))
         || (_joinFormation || _catchUpToTarget);
 
     if (predictDestination)

@@ -121,7 +121,7 @@ struct npc_lct_wind_tunnel_landing_zone : public ScriptedAI
     npc_lct_wind_tunnel_landing_zone(Creature* creature) : ScriptedAI(creature)
     {
         me->SetDisableGravity(true);
-        me->SetExtraUnitMovementFlags(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING);
+        me->SetUnitMovementFlag(MovementFlags2(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING));
     }
 
     void PassengerBoarded(Unit* who, int8 /*seatId*/, bool apply) override

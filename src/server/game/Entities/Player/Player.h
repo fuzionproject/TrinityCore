@@ -2150,12 +2150,12 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         /*********************************************************/
         /***                 VARIOUS SYSTEMS                   ***/
         /*********************************************************/
-        void UpdateFallInformationIfNeed(MovementInfo const& minfo, uint16 opcode);
+        void UpdateFallInformationIfNeed(MovementStatus const& movementStatus, uint16 opcode);
         // only changed for direct client control (possess, vehicle etc.), not stuff you control using pet commands
         Unit* m_unitMovedByMe;
         WorldObject* m_seer;
         void SetFallInformation(uint32 time, float z);
-        void HandleFall(MovementInfo const& movementInfo);
+        void HandleFall(MovementStatus const& movementStatus);
 
         void SetClientControl(Unit* target, bool allowMove);
 
@@ -2356,18 +2356,18 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         bool IsInWhisperWhiteList(ObjectGuid guid);
         void RemoveFromWhisperWhiteList(ObjectGuid guid) { WhisperList.remove(guid); }
 
-        void ReadMovementInfo(WorldPacket& data, MovementInfo* mi, Movement::ExtraMovementStatusElement* extras = nullptr);
+        void ExtractMovementStatusFromPacket(WorldPacket& data, MovementStatus& movementStatus, Movement::ExtraMovementStatusElement* extraStatusElements = nullptr);
 
         /*! These methods send different packets to the client in apply and unapply case.
             These methods are only sent to the current unit.
         */
 
-        void ValidateMovementInfo(MovementInfo* mi);
+        void SanitizeMovementStatus(MovementStatus& movementStatus);
 
         void SendMovementSetCanTransitionBetweenSwimAndFly(bool apply);
         void SendMovementSetCollisionHeight(float height, UpdateCollisionHeightReason reason);
 
-        bool CanFly() const override { return m_movementInfo.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
+        bool CanFly() const override { return _movementStatus.HasMovementFlag(MOVEMENTFLAG_CAN_FLY); }
         bool CanEnterWater() const override { return true; }
 
         std::string GetMapAreaAndZoneString() const;

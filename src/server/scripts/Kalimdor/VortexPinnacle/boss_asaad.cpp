@@ -667,7 +667,7 @@ class spell_asaad_static_cling : public SpellScript
         targets.remove_if([](WorldObject const* target)
         {
             Player const* player = target->ToPlayer();
-            return (!player || player->HasUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR));
+            return (!player || player->HasUnitMovementFlag(MovementFlags(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR)));
         });
     }
 

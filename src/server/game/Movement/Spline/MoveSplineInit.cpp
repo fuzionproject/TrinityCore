@@ -75,7 +75,7 @@ namespace Movement
             if (!transport)
                 pos = unit;
             else
-                pos = &unit->m_movementInfo.transport.pos;
+                pos = &unit->_movementStatus.Transport->Pos;
 
             real_position.x = pos->GetPositionX();
             real_position.y = pos->GetPositionY();
@@ -93,7 +93,7 @@ namespace Movement
         args.flags.enter_cycle = args.flags.cyclic;
         move_spline.onTransport = (unit->GetTransGUID() != 0);
 
-        uint32 moveFlags = unit->m_movementInfo.GetMovementFlags();
+        uint32 moveFlags = unit->_movementStatus.GetMovementFlags();
         if (!args.flags.backward)
             moveFlags = (moveFlags & ~MOVEMENTFLAG_BACKWARD) | MOVEMENTFLAG_FORWARD;
         else
@@ -118,14 +118,14 @@ namespace Movement
         if (!args.Validate(unit))
             return 0;
 
-        unit->m_movementInfo.SetMovementFlags(moveFlags);
+        unit->_movementStatus.MovementFlags0 = moveFlags;
         move_spline.Initialize(args);
 
         WorldPackets::Movement::MonsterMove packet(transport);
         packet.MoverGUID = unit->GetGUID();
         packet.Pos = Position(real_position.x, real_position.y, real_position.z, real_position.orientation);
         packet.InitializeSplineData(move_spline);
-        if (unit->m_movementInfo.HasExtraMovementFlag(MOVEMENTFLAG2_IS_VEHICLE_EXIT_VOLUNTARY))
+        if (unit->_movementStatus.HasMovementFlag(MOVEMENTFLAG2_IS_VEHICLE_EXIT_VOLUNTARY))
             packet.SplineData.Move.VehicleExitVoluntary = true;
 
         if (transport)
@@ -157,7 +157,7 @@ namespace Movement
             if (!transport)
                 pos = unit;
             else
-                pos = &unit->m_movementInfo.transport.pos;
+                pos = &unit->_movementStatus.Transport->Pos;
 
             loc.x = pos->GetPositionX();
             loc.y = pos->GetPositionY();
@@ -166,7 +166,7 @@ namespace Movement
         }
 
         args.flags = MoveSplineFlag::Done;
-        unit->m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_FORWARD);
+        unit->_movementStatus.RemoveMovementFlag(MOVEMENTFLAG_FORWARD);
         move_spline.onTransport = transport;
         move_spline.Initialize(args);
 

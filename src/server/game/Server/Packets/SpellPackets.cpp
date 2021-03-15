@@ -614,132 +614,138 @@ ByteBuffer& operator>>(ByteBuffer& data, WorldPackets::Spells::SpellTargetData& 
     return data;
 }
 
-ByteBuffer& operator>>(ByteBuffer& data, Optional<MovementInfo>& movementInfo)
+ByteBuffer& operator>>(ByteBuffer& data, Optional<MovementStatus>& movementInfo)
 {
     movementInfo.emplace();
-    data >> movementInfo->pos.m_positionZ;
-    data >> movementInfo->pos.m_positionY;
-    data >> movementInfo->pos.m_positionX;
+    data >> movementInfo->Pos.m_positionZ;
+    data >> movementInfo->Pos.m_positionY;
+    data >> movementInfo->Pos.m_positionX;
 
-    bool hasFallData = data.ReadBit();
+    if (data.ReadBit())
+        movementInfo->Fall.emplace();
+
     bool hasTime = !data.ReadBit();
     bool hasFacing = !data.ReadBit();
 
-    data.ReadBit(); // HasSpline
-    data.ReadBit(); // HeightChangeFailed
+    movementInfo->HasSpline = data.ReadBit();
+    movementInfo->HeightChangeFailed = data.ReadBit();
 
-    movementInfo->guid[6] = data.ReadBit();
-    movementInfo->guid[4] = data.ReadBit();
+    movementInfo->MoverGUID[6] = data.ReadBit();
+    movementInfo->MoverGUID[4] = data.ReadBit();
 
     bool hasExtraMovementFlags = !data.ReadBit();
 
-    movementInfo->guid[3] = data.ReadBit();
-    movementInfo->guid[5] = data.ReadBit();
+    movementInfo->MoverGUID[3] = data.ReadBit();
+    movementInfo->MoverGUID[5] = data.ReadBit();
 
     bool hasSplineElevation = !data.ReadBit();
     bool hasPitch = !data.ReadBit();
 
-    movementInfo->guid[7] = data.ReadBit();
+    movementInfo->MoverGUID[7] = data.ReadBit();
 
-    bool hasTransportData = data.ReadBit();
+    if (data.ReadBit())
+        movementInfo->Transport.emplace();
 
-    movementInfo->guid[2] = data.ReadBit();
+    movementInfo->MoverGUID[2] = data.ReadBit();
 
     bool hasMovementFlags = !data.ReadBit();
 
-    movementInfo->guid[1] = data.ReadBit();
-    movementInfo->guid[0] = data.ReadBit();
+    movementInfo->MoverGUID[1] = data.ReadBit();
+    movementInfo->MoverGUID[0] = data.ReadBit();
 
-    bool hasTransportTime2 = false;
-    bool hasVehicleRecId = false;
-    if (hasTransportData)
+    if (movementInfo->Transport.has_value())
     {
-        movementInfo->transport.guid[6] = data.ReadBit();
-        movementInfo->transport.guid[2] = data.ReadBit();
-        movementInfo->transport.guid[5] = data.ReadBit();
-        hasTransportTime2 = data.ReadBit();
-        movementInfo->transport.guid[7] = data.ReadBit();
-        movementInfo->transport.guid[4] = data.ReadBit();
-        hasVehicleRecId = data.ReadBit();
-        movementInfo->transport.guid[0] = data.ReadBit();
-        movementInfo->transport.guid[1] = data.ReadBit();
-        movementInfo->transport.guid[3] = data.ReadBit();
+        movementInfo->Transport->Guid[6] = data.ReadBit();
+        movementInfo->Transport->Guid[2] = data.ReadBit();
+        movementInfo->Transport->Guid[5] = data.ReadBit();
+
+        if (data.ReadBit())
+            movementInfo->Transport->PrevMoveTime.emplace();
+
+        movementInfo->Transport->Guid[7] = data.ReadBit();
+        movementInfo->Transport->Guid[4] = data.ReadBit();
+        if (data.ReadBit())
+            movementInfo->Transport->VehicleRecID.emplace();
+
+        movementInfo->Transport->Guid[0] = data.ReadBit();
+        movementInfo->Transport->Guid[1] = data.ReadBit();
+        movementInfo->Transport->Guid[3] = data.ReadBit();
     }
 
     if (hasExtraMovementFlags)
-        movementInfo->SetExtraMovementFlags(data.ReadBits(12));
+        movementInfo->MovementFlags1 = data.ReadBits(12);
 
     if (hasMovementFlags)
-        movementInfo->SetMovementFlags(data.ReadBits(30));
+        movementInfo->MovementFlags0 = data.ReadBits(30);
 
-    bool hasFallDirection = false;
-    if (hasFallData)
-        hasFallDirection = data.ReadBit();
+    if (movementInfo->Fall.has_value())
+        if (data.ReadBit())
+            movementInfo->Fall->Velocity.emplace();
 
-    data.ReadByteSeq(movementInfo->guid[1]);
-    data.ReadByteSeq(movementInfo->guid[4]);
-    data.ReadByteSeq(movementInfo->guid[7]);
-    data.ReadByteSeq(movementInfo->guid[3]);
-    data.ReadByteSeq(movementInfo->guid[0]);
-    data.ReadByteSeq(movementInfo->guid[2]);
-    data.ReadByteSeq(movementInfo->guid[5]);
-    data.ReadByteSeq(movementInfo->guid[6]);
+    data.ReadByteSeq(movementInfo->MoverGUID[1]);
+    data.ReadByteSeq(movementInfo->MoverGUID[4]);
+    data.ReadByteSeq(movementInfo->MoverGUID[7]);
+    data.ReadByteSeq(movementInfo->MoverGUID[3]);
+    data.ReadByteSeq(movementInfo->MoverGUID[0]);
+    data.ReadByteSeq(movementInfo->MoverGUID[2]);
+    data.ReadByteSeq(movementInfo->MoverGUID[5]);
+    data.ReadByteSeq(movementInfo->MoverGUID[6]);
 
-    if (hasTransportData)
+    if (movementInfo->Transport.has_value())
     {
-        data >> movementInfo->transport.seat;
-        movementInfo->transport.pos.SetOrientation(data.read<float>());
-        data >> movementInfo->transport.time;
+        data >> movementInfo->Transport->VehicleSeatIndex;
+        movementInfo->Transport->Pos.SetOrientation(data.read<float>());
+        data >> movementInfo->Transport->MoveTime;
 
-        data.ReadByteSeq(movementInfo->transport.guid[6]);
-        data.ReadByteSeq(movementInfo->transport.guid[5]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[6]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[5]);
 
-        if (hasTransportTime2)
-            data >> movementInfo->transport.time2;
+        if (movementInfo->Transport->PrevMoveTime.has_value())
+            data >> *movementInfo->Transport->PrevMoveTime;
 
-        data >> movementInfo->transport.pos.m_positionX;
+        data >> movementInfo->Transport->Pos.m_positionX;
 
-        data.ReadByteSeq(movementInfo->transport.guid[4]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[4]);
 
-        data >> movementInfo->transport.pos.m_positionZ;
+        data >> movementInfo->Transport->Pos.m_positionZ;
 
-        data.ReadByteSeq(movementInfo->transport.guid[2]);
-        data.ReadByteSeq(movementInfo->transport.guid[0]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[2]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[0]);
 
-        if (hasVehicleRecId)
-            data >> movementInfo->transport.vehicleId;
+        if (movementInfo->Transport->VehicleRecID.has_value())
+            data >> *movementInfo->Transport->VehicleRecID;
 
-        data.ReadByteSeq(movementInfo->transport.guid[1]);
-        data.ReadByteSeq(movementInfo->transport.guid[3]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[1]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[3]);
 
-        data >> movementInfo->transport.pos.m_positionY;
+        data >> movementInfo->Transport->Pos.m_positionY;
 
-        data.ReadByteSeq(movementInfo->transport.guid[7]);
+        data.ReadByteSeq(movementInfo->Transport->Guid[7]);
     }
 
     if (hasFacing)
-        movementInfo->pos.SetOrientation(data.read<float>());
+        movementInfo->Pos.SetOrientation(data.read<float>());
 
     if (hasSplineElevation)
-        data >> movementInfo->splineElevation;
+        data >> movementInfo->StepUpStartElevation;
 
-    if (hasFallData)
+    if (movementInfo->Fall.has_value())
     {
-        data >> movementInfo->jump.fallTime;
-        if (hasFallDirection)
+        data >> movementInfo->Fall->Time;
+        if (movementInfo->Fall->Velocity.has_value())
         {
-            data >> movementInfo->jump.sinAngle;
-            data >> movementInfo->jump.cosAngle;
-            data >> movementInfo->jump.xyspeed;
+            data >> movementInfo->Fall->Velocity->Direction.y;
+            data >> movementInfo->Fall->Velocity->Direction.x;
+            data >> movementInfo->Fall->Velocity->Speed;
         }
-        data >> movementInfo->jump.zspeed;
+        data >> movementInfo->Fall->JumpVelocity;
     }
 
     if (hasTime)
-        data >> movementInfo->time;
+        data >> movementInfo->MoveTime;
 
     if (hasPitch)
-        data >> movementInfo->pitch;
+        data >> movementInfo->Pitch;
 
     return data;
 }

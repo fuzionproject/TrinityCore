@@ -159,7 +159,7 @@ struct npc_slipstream : public NullCreatureAI
 {
     npc_slipstream(Creature* creature) : NullCreatureAI(creature), _instance(me->GetInstanceScript()), _guid(me->GetGUID())
     {
-        me->SetExtraUnitMovementFlags(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING);
+        me->SetUnitMovementFlag(MovementFlags2(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING));
     }
 
     void OnSpellClick(Unit* clicker, bool& result) override
@@ -220,7 +220,7 @@ struct npc_slipstream_landing_zone : public ScriptedAI
     npc_slipstream_landing_zone(Creature* creature) : ScriptedAI(creature)
     {
         me->SetDisableGravity(true);
-        me->SetExtraUnitMovementFlags(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING);
+        me->SetUnitMovementFlag(MovementFlags2(MOVEMENTFLAG2_NO_STRAFE | MOVEMENTFLAG2_NO_JUMPING));
     }
 
     void PassengerBoarded(Unit* who, int8 /*seatId*/, bool apply) override

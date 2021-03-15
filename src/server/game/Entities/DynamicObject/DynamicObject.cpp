@@ -108,16 +108,10 @@ bool DynamicObject::CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caste
         setActive(true);    //must before add to map to be put in world container
 
     Transport* transport = caster->GetTransport();
-    if (transport)
-    {
-        float x, y, z, o;
-        pos.GetPosition(x, y, z, o);
-        transport->CalculatePassengerOffset(x, y, z, &o);
-        m_movementInfo.transport.pos.Relocate(x, y, z, o);
 
-        // This object must be added to transport before adding to map for the client to properly display it
+    // This object must be added to transport before adding to map for the client to properly display it
+    if (transport)     
         transport->AddPassenger(this);
-    }
 
     if (!GetMap()->AddToMap(this))
     {

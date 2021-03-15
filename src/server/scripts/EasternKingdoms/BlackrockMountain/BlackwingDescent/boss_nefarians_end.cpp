@@ -860,7 +860,7 @@ private:
             transport->CalculatePassengerOffset(x, y, z, &o);
 
             transport->AddPassenger(summon);
-            summon->m_movementInfo.transport.pos.Relocate({ x, y, z, o });
+            summon->_movementStatus.Transport->Pos.Relocate({ x, y, z, o });
             summon->Relocate(pos);
             summon->SetHomePosition(pos);
             summon->SetTransportHomePosition({ x, y, z, o });

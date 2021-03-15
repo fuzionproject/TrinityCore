@@ -108,7 +108,7 @@ void WorldPackets::Party::PartyMemberState::Initialize(Player const* player)
 
     // Vehicle
     if (player->GetVehicle() && player->GetVehicle()->GetVehicleInfo())
-        MemberStats.VehicleSeat = player->GetVehicle()->GetVehicleInfo()->SeatID[player->m_movementInfo.transport.seat];
+        MemberStats.VehicleSeat = player->GetVehicle()->GetVehicleInfo()->SeatID[player->_movementStatus.Transport->VehicleSeatIndex];
 
     // Auras
     MemberStats.AuraMask = player->GetAuraUpdateMaskForRaid();

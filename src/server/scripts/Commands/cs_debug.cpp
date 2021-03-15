@@ -1520,7 +1520,7 @@ public:
         if (!*args)
         {
             //! Display case
-            handler->PSendSysMessage(LANG_MOVEFLAGS_GET, target->GetUnitMovementFlags(), target->GetExtraUnitMovementFlags());
+            handler->PSendSysMessage(LANG_MOVEFLAGS_GET, target->GetUnitMovementFlags(), target->GetUnitMovementFlags2());
         }
         else
         {
@@ -1531,16 +1531,17 @@ public:
             char* mask2 = strtok(nullptr, " \n");
 
             uint32 moveFlags = (uint32)atoi(mask1);
-            target->SetUnitMovementFlags(moveFlags);
+            target->SetUnitMovementFlag(MovementFlags(moveFlags));
 
             /// @fixme: port master's HandleDebugMoveflagsCommand; flags need different handling
 
             if (mask2)
             {
                 uint32 moveFlagsExtra = uint32(atoi(mask2));
-                target->SetExtraUnitMovementFlags(moveFlagsExtra);
+                target->SetUnitMovementFlag(MovementFlags2(moveFlagsExtra));
             }
 
+            /*
             if (target->GetTypeId() != TYPEID_PLAYER)
                 target->DestroyForNearbyPlayers();  // Force new SMSG_UPDATE_OBJECT:CreateObject
             else
@@ -1549,8 +1550,9 @@ public:
                 target->WriteMovementInfo(data);
                 target->SendMessageToSet(&data, true);
             }
+            */
 
-            handler->PSendSysMessage(LANG_MOVEFLAGS_SET, target->GetUnitMovementFlags(), target->GetExtraUnitMovementFlags());
+            handler->PSendSysMessage(LANG_MOVEFLAGS_SET, target->GetUnitMovementFlags(), target->GetUnitMovementFlags2());
         }
 
         return true;
