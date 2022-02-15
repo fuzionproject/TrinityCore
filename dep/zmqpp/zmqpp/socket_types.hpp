@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
 /**
  * \file
  *
@@ -18,7 +27,7 @@ namespace zmqpp
  *
  * Each is designed for a different use and has different limitations.
  */
-enum class socket_type {
+ZMQPP_COMPARABLE_ENUM socket_type {
 	/*!
 	 * One to one - two way connection.\n
 	 * Connect to ::pair.\n
@@ -128,6 +137,15 @@ enum class socket_type {
 	 */
 	xreply     = ZMQ_XREP,
 
+	/*!
+	 * One to many - fair-queued incoming, targeted outgoing.\n
+	 * Connect to non-0mq sockets.\n
+	 * Messages sent must consist of a identity target and a single data frame.
+	 */
+#if (ZMQ_VERSION_MAJOR >= 4)
+	stream     = ZMQ_STREAM,
+#endif
+
 	// To match for people who prefer the shorter versions
 	pub        = ZMQ_PUB,    /*!< version of ::publish to match zmq name convention */
 	sub        = ZMQ_SUB,    /*!< version of ::subscribe to match zmq name convention */
@@ -137,6 +155,16 @@ enum class socket_type {
 	xsub       = ZMQ_XSUB,   /*!< version of ::xsubscribe to match zmq name convention */
 	xreq       = ZMQ_XREQ,   /*!< version of ::xrequest to match zmq name convention */
 	xrep       = ZMQ_XREP,   /*!< version of ::xreply to match zmq name convention */
+
+#ifdef ZMQ_BUILD_DRAFT_API	
+	server     = ZMQ_SERVER,  /*!< client-server pattern is intended for service-oriented architectures of various kinds. It provides an asynchronous two-way message flow. see http://rfc.zeromq.org/spec:41 */
+	client     = ZMQ_CLIENT,  /*!< client-server pattern is intended for service-oriented architectures of various kinds. It provides an asynchronous two-way message flow. see http://rfc.zeromq.org/spec:41 */
+	radio      = ZMQ_RADIO,   /*!< meant to eventually deprecate the use of ZMQ_PUB to build pub-sub architectures, also supports udp */
+	dish       = ZMQ_DISH,    /*!< meant to eventually deprecate the use of ZMQ_SUB to build pub-sub architectures, also supports udp */
+	gather     = ZMQ_GATHER,  /*!< intention is to extend the API to allow scatter/gather of multi-part data. as client-server does not support ZMQ_SNDMORE/ZMQ_RCVMORE */
+	scatter    = ZMQ_SCATTER, /*!< intention is to extend the API to allow scatter/gather of multi-part data. as client-server does not support ZMQ_SNDMORE/ZMQ_RCVMORE */
+	dgram      = ZMQ_DGRAM,   /*!< unknown, as documentation is somewhat lacking. supports udp? */
+#endif
 
 	// For completion
 	router     = ZMQ_ROUTER, /*!< \deprecated Matches zmq 2.x xrep functionality. */

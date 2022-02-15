@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
 /**
  * \file
  *
@@ -7,6 +16,10 @@
 
 #ifndef ZMQPP_INET_HPP_
 #define ZMQPP_INET_HPP_
+
+#include <utility>
+#include <cassert>
+#include <cstdint>
 
 /** \todo cross-platform version of including headers. */
 // We get htons and htonl from here
@@ -72,27 +85,33 @@ inline uint64_t swap_if_needed(uint64_t const value_to_check)
  * 64 bit version of the htons/htonl
  *
  * I've used the name htonll to try and keep with the htonl naming scheme.
+ * We do not define this function if the macro `htonll` exists.
  *
  * \param hostlonglong unsigned 64 bit host order integer
  * \return unsigned 64 bit network order integer
  */
+#ifndef htonll
 inline uint64_t htonll(uint64_t const hostlonglong)
 {
 	return zmqpp::swap_if_needed(hostlonglong);
 }
+#endif
 
 /*!
  * 64 bit version of the ntohs/ntohl
  *
  * I've used the name htonll to try and keep with the htonl naming scheme.
+ * We do not define this function if the macro `ntohll` exists.
  *
  * \param networklonglong unsigned 64 bit network order integer
  * \return unsigned 64 bit host order integer
  */
+#ifndef ntohll
 inline uint64_t ntohll(uint64_t const networklonglong)
 {
 	return zmqpp::swap_if_needed(networklonglong);
 }
+#endif
 
 /*!
  * floating point version of the htons/htonl
@@ -142,7 +161,7 @@ inline double htond(double value)
 
 	uint64_t temp;
 	memcpy(&temp, &value, sizeof(uint64_t));
-	temp = zmqpp::htonll(temp);
+	temp = htonll(temp);
 	memcpy(&value, &temp, sizeof(uint64_t));
 
 	return value;
@@ -160,7 +179,7 @@ inline double ntohd(double value)
 
 	uint64_t temp;
 	memcpy(&temp, &value, sizeof(uint64_t));
-	temp = zmqpp::ntohll(temp);
+	temp = ntohll(temp);
 	memcpy(&value, &temp, sizeof(uint64_t));
 
 	return value;

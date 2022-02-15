@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
 /**
  * \file
  *
@@ -21,7 +30,7 @@
 namespace zmqpp
 {
 
-/*!
+/**
  * The context class represents internal zmq context and io threads.
  *
  * By default the context class will create one thread, however this can be
@@ -34,12 +43,12 @@ namespace zmqpp
  *
  * This class is c++0x move supporting and cannot be copied.
  */
-class context
+class ZMQPP_EXPORT context
 {
 public:
 
 #if (ZMQ_VERSION_MAJOR < 3) || ((ZMQ_VERSION_MAJOR == 3) && (ZMQ_VERSION_MINOR < 2))
-	/*!
+	/**
 	 * Initialise the 0mq context.
 	 *
 	 * If only inproc is used then the context may be created with zero threads.
@@ -53,7 +62,7 @@ public:
 	 */
 	context(int const& threads = 1)
 #else
-	/*!
+	/**
 	 * Initialise the 0mq context.
 	 *
 	 * The context is thread safe an may be used anywhere in your application,
@@ -76,7 +85,7 @@ public:
 		}
 	}
 
-	/*!
+	/**
 	 * Closes the 0mq context.
 	 *
 	 * Any blocking calls other than a socket close will return with an error.
@@ -92,7 +101,7 @@ public:
 		}
 	}
 
-	/*!
+	/**
 	 * Move supporting constructor.
 	 *
 	 * Allows zero-copy move semantics to be used with this class.
@@ -105,7 +114,7 @@ public:
 		source._context = nullptr;
 	}
 
-	/*!
+	/**
 	 * Move supporting operator.
 	 *
 	 * Allows zero-copy move semantics to be used with this class.
@@ -118,7 +127,7 @@ public:
 		return *this;
 	}
 
-	/*!
+	/**
 	 * Terminate the current context.
 	 *
 	 * Any blocking calls other than a socket close will return with an error.
@@ -129,7 +138,7 @@ public:
 	void terminate();
 
 #if (ZMQ_VERSION_MAJOR > 3) || ((ZMQ_VERSION_MAJOR == 3) && (ZMQ_VERSION_MINOR >= 2))
-	/*!
+	/**
 	 * Set the value of an option in the underlaying zmq context.
 	 *
 	 * \param option a valid ::context_option
@@ -137,7 +146,7 @@ public:
 	 */
 	void set(context_option const option, int const value);
 
-	/*!
+	/**
 	 * Get a context option from the underlaying zmq context.
 	 *
 	 * \param option a valid ::context_option
@@ -146,7 +155,7 @@ public:
 	int get(context_option const option);
 #endif
 
-	/*!
+	/**
 	 * Validity checking of the context
 	 *
 	 * Checks if the underlying 0mq context for this instance is valid.
@@ -161,7 +170,7 @@ public:
 		return nullptr != _context;
 	}
 
-	/*!
+	/**
 	 * Access to the raw 0mq context
 	 *
 	 * \return void pointer to the underlying 0mq context.

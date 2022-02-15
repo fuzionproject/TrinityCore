@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
 /**
  * \file
  *
@@ -21,7 +30,7 @@ namespace zmqpp {
  * by the zmqpp message class to keep track of parts in the internal
  * queue. It is unlikely you need to use this class.
  */
-class frame
+class ZMQPP_EXPORT frame
 {
 public:
 	frame();
@@ -45,9 +54,9 @@ public:
 	frame copy() const;
 
 private:
-	bool _sent;
 	zmq_msg_t _msg;
-
+	bool _sent;
+	
 	// Disable implicit copy support, code must request a copy to clone
 	frame(frame const&) NOEXCEPT ZMQPP_EXPLICITLY_DELETED;
 	frame& operator=(frame const&) NOEXCEPT ZMQPP_EXPLICITLY_DELETED;

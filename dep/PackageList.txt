@@ -71,7 +71,7 @@ libzmq (ZeroMQ core engine in C++, implements ZMTP/3.1)
 
 zmqpp (C++ binding for 0mq/zmq is a 'high-level' library that hides most of the c-style interface core 0mq provides.)
   https://github.com/zeromq/zmqpp
-  Version: 3.2.0 17e9f6afa98f56ecac1e3f3eecbfc112357a6732
+  Version: 4.2.0 ba4230d5d03d29ced9ca788e3bd1095477db08ae
 
 rapidjson (A fast JSON parser/generator for C++ with both SAX/DOM style API http://rapidjson.org/)
   https://github.com/miloyip/rapidjson

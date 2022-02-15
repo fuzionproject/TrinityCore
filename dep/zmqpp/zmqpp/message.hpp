@@ -1,3 +1,12 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
 /**
  * \file
  *
@@ -8,32 +17,33 @@
 #ifndef ZMQPP_MESSAGE_HPP_
 #define ZMQPP_MESSAGE_HPP_
 
+#include <cassert>
 #include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include <utility>
-#include <cassert>
 
 #include <zmq.h>
 
 #include "compatibility.hpp"
 #include "frame.hpp"
+#include "signal.hpp"
 
 namespace zmqpp
 {
 
-/*!
+/**
  * \brief a zmq message with optional multipart support
  *
  * A zmq message is made up of one or more parts which are sent together to
  * the target endpoints. zmq guarantees either the whole message or none
  * of the message will be delivered.
  */
-class message
+class ZMQPP_EXPORT message
 {
 public:
-	/*!
+	/**
 	 * \brief callback to release user allocated data.
 	 *
 	 * The release function will be called on any void* moved part.
@@ -63,6 +73,7 @@ public:
 	void get(int16_t& integer, size_t const part) const;
 	void get(int32_t& integer, size_t const part) const;
 	void get(int64_t& integer, size_t const part) const;
+	void get(signal& sig, size_t const part) const;
 
 	void get(uint8_t& unsigned_integer, size_t const part) const;
 	void get(uint16_t& unsigned_integer, size_t const part) const;
@@ -78,7 +89,7 @@ public:
 	// Warn: If a pointer type is requested the message (well zmq) still 'owns'
 	// the data and will release it when the message object is freed.
 	template<typename Type>
-	Type get(size_t const part)
+	Type get(size_t const part) const
 	{
 		Type value;
 		get(value, part);
@@ -86,7 +97,7 @@ public:
 	}
 
     template<int part=0, typename T, typename ...Args>
-    void extract(T &nextpart, Args &...args)
+    void extract(T &nextpart, Args &...args) const
     {
         assert(part < parts());
         get(nextpart,part);
@@ -94,7 +105,7 @@ public:
     }
 
     template<int part=0, typename T>
-    void extract(T &nextpart)
+    void extract(T &nextpart) const
     {
         assert(part < parts());
         get(nextpart,part);
@@ -128,13 +139,6 @@ public:
 	}
 
 	// Copy operators will take copies of any data
-	template<typename Type>
-	void add(Type *part, size_t const size)
-	{
-		_parts.push_back( frame( part, size ) );
-	}
-
-
 	template<typename Type, typename ...Args>
 	void add(Type const& part, Args &&...args)
 	{
@@ -147,6 +151,101 @@ public:
 	{
 		*this << part;
 	}
+
+	// Copy operators will take copies of any data with a given size
+	template<typename Type>
+	void add_raw(Type *part, size_t const data_size)
+	{
+		_parts.push_back( frame( part, data_size ) );
+	}
+
+	// Use exact data past, neither zmqpp nor 0mq will copy, alter or delete
+	// this data. It must remain as valid for at least the lifetime of the
+	// 0mq message, recommended only with const data.
+	template<typename Type>
+	ZMQPP_DEPRECATED("Use add_nocopy() or add_nocopy_const() instead.")
+	void add_const(Type *part, size_t const data_size)
+	{
+		_parts.push_back( frame( part, data_size, nullptr, nullptr ) );
+	}
+
+	/**
+	 * Add a no-copy frame.
+	 *
+	 * This means that neither zmqpp nor libzmq will make a copy of the
+	 * data. The pointed-to data must remain valid for the lifetime of
+	 * the underlying zmq_msg_t. Note that you cannot always know about
+	 * this lifetime, so be careful.
+	 *
+	 * @param part The pointed-to data that will be send in the message.
+	 * @param data_size The number of byte pointed-to by "part".
+	 * @param ffn The free function called by libzmq when it doesn't need
+	 * your buffer anymore. It defaults to nullptr, meaning your data
+	 * will not be freed.
+	 * @param hint A hint to help your free function do its job.
+	 *
+	 * @note This is similar to what `move()` does. While `move()` provide a safe
+	 * (wrt to type) deleter (at the cost of 1 memory allocation) add_nocopy
+	 * let you pass the low-level callback that libzmq will invoke.
+	 *
+	 * @note The free function must be thread-safe as it can be invoke from
+	 * any libzmq's context threads.
+	 *
+	 * @see add_nocopy_const
+	 * @see move
+	 */
+	template<typename Type>
+	void add_nocopy(Type *part, size_t const data_size,
+					zmq_free_fn *ffn = nullptr, void *hint = nullptr)
+	{
+		static_assert(!std::is_const<Type>::value,
+                      "Data part must not be const. Use add_nocopy_const() instead (and read its documentation)");
+		_parts.push_back(frame(part, data_size, ffn, hint));
+	}
+
+	/**
+	 * Add a no-copy frame where pointed-to data are const.
+	 *
+	 * This means that neither zmqpp nor libzmq will make a copy of the
+	 * data. The pointed-to data must remain valid for the lifetime of
+	 * the underlying zmq_msg_t. Note that you cannot always know about
+	 * this lifetime, so be careful.
+	 *
+	 * @warning About constness: The library will cast away constness from
+	 * your pointer. However, it promises that both libzmq and zmqpp will
+	 * not alter the pointed-to data. *YOU* must however be careful: zmqpp or libzmq
+	 * will happily return a non-const pointer to your data. It's your responsibility
+	 * to not modify it.
+	 *
+	 * @param part The pointed-to data that will be send in the message.
+	 * @param data_size The number of byte pointed-to by "part".
+	 * @param ffn The free function called by libzmq when it doesn't need
+	 * your buffer anymore. It defaults to nullptr, meaning your data
+	 * will not be freed.
+	 * @param hint A hint to help your free function do its job.
+	 *
+	 * @note The free function must be thread-safe as it can be invoke from
+	 * any libzmq's context threads.
+	 *
+	 * @see add_nocopy
+	 */
+	template<typename Type>
+	void add_nocopy_const(const Type *part, size_t const data_size,
+				   zmq_free_fn *ffn = nullptr, void *hint = nullptr)
+	{
+		add_nocopy(const_cast<typename std::remove_const<Type *>::type>(part),
+				   data_size, ffn, hint);
+	}
+
+#if (ZMQ_VERSION_MAJOR >= 4) && ((ZMQ_VERSION_MAJOR >= 2) && ZMQ_BUILD_DRAFT_API)
+	/**
+	 * Specify a group for the message to be sent via radio
+	 *
+	 * \param group the group that the message belongs to
+	 * \return true if group was set successfully, false if there are no parts or not set successfully
+	 */
+	bool set_group(const std::string& group);
+#endif
 
 	// Stream reader style
 	void reset_read_cursor();
@@ -163,6 +262,7 @@ public:
 	message& operator<<(int16_t const integer);
 	message& operator<<(int32_t const integer);
 	message& operator<<(int64_t const integer);
+	message& operator<<(signal const sig);
 
 	message& operator<<(uint8_t const unsigned_integer);
 	message& operator<<(uint16_t const unsigned_integer);
@@ -184,6 +284,7 @@ public:
 	void push_front(int16_t const integer);
 	void push_front(int32_t const integer);
 	void push_front(int64_t const integer);
+	void push_front(signal const sig);
 
 	void push_front(uint8_t const unsigned_integer);
 	void push_front(uint16_t const unsigned_integer);
@@ -199,9 +300,9 @@ public:
 
 	void pop_front();
 
-	void push_back(void const* part, size_t const size)
+	void push_back(void const* part, size_t const data_size)
 	{
-		add( part, size );
+		add_raw( part, data_size );
 	}
 
 	template<typename Type>
@@ -230,6 +331,41 @@ public:
 	zmq_msg_t& raw_msg(size_t const part = 0);
 	zmq_msg_t& raw_new_msg();
 	zmq_msg_t& raw_new_msg(size_t const reserve_data_size);
+
+	/**
+	 * Check if the message is a signal.
+	 * If the message has 1 part, has the correct size and if the 7 first bytes match
+	 * the signal header we consider the message a signal.
+	 * @return true if the message is a signal, false otherwise
+	 */
+	bool is_signal() const;
+
+	/**
+	 * Gets the read cursor. For using get_raw() with stream-style reading.
+	 */
+	size_t read_cursor() const NOEXCEPT { return _read_cursor; }
+
+	/**
+	 * Gets the remaining number of parts in the message.
+	 */
+	size_t remaining() const NOEXCEPT { return  _parts.size() - _read_cursor; }
+
+	/**
+	 * Moves the read cursor to the next element.
+	 * @return the new read_cursor
+	 */
+	size_t next() NOEXCEPT { return ++_read_cursor; }
+
+
+#if (ZMQ_VERSION_MAJOR == 4 && ZMQ_VERSION_MINOR >= 1)
+	/**
+	* Attemps to retrieve a metadata property from a message.
+	* The underlying call is `zmq_msg_gets()`.
+	*
+	* @note The message MUST have at least one frame, otherwise this wont work.
+	*/
+	bool get_property(const std::string &property, std::string &out);
+#endif
 
 private:
 	typedef std::vector<frame> parts_type;

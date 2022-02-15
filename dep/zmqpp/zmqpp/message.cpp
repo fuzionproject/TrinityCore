@@ -1,4 +1,13 @@
 /*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/.
+ *
+ * This file is part of zmqpp.
+ * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
+ */
+
+/*
  *  Created on: 9 Aug 2011
  *      Author: Ben Gray (@benjamg)
  */
@@ -138,7 +147,16 @@ void message::get(int64_t& integer, size_t const part) const
 	assert(sizeof(int64_t) == size(part));
 
 	uint64_t const* network_order = static_cast<uint64_t const*>(raw_data(part));
-	integer = static_cast<int64_t>(zmqpp::htonll(*network_order));
+	integer = static_cast<int64_t>(htonll(*network_order));
+}
+
+void message::get(signal &sig, size_t const part) const
+{
+    assert(sizeof(signal) == size(part));
+    int64_t v;
+    get(v, part);
+
+    sig = static_cast<signal>(v);
 }
 
 void message::get(uint8_t& unsigned_integer, size_t const part) const
@@ -170,7 +188,7 @@ void message::get(uint64_t& unsigned_integer, size_t const part) const
 	assert(sizeof(uint64_t) == size(part));
 
 	uint64_t const* network_order = static_cast<uint64_t const*>(raw_data(part));
-	unsigned_integer = zmqpp::ntohll(*network_order);
+	unsigned_integer = ntohll(*network_order);
 }
 
 void message::get(float& floating_point, size_t const part) const
@@ -206,14 +224,14 @@ void message::get(std::string& string, size_t const part) const
 // Stream writer style - these all use copy styles
 message& message::operator<<(int8_t const integer)
 {
-        add(reinterpret_cast<void const*>(&integer), sizeof(int8_t));
+	add_raw(reinterpret_cast<void const*>(&integer), sizeof(int8_t));
 	return *this;
 }
 
 message& message::operator<<(int16_t const integer)
 {
 	uint16_t network_order = htons(static_cast<uint16_t>(integer));
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint16_t));
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint16_t));
 
 	return *this;
 }
@@ -221,30 +239,34 @@ message& message::operator<<(int16_t const integer)
 message& message::operator<<(int32_t const integer)
 {
 	uint32_t network_order = htonl(static_cast<uint32_t>(integer));
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint32_t));
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint32_t));
 
 	return *this;
 }
 
 message& message::operator<<(int64_t const integer)
 {
-	uint64_t network_order = zmqpp::htonll(static_cast<uint64_t>(integer));
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint64_t));
+	uint64_t network_order = htonll(static_cast<uint64_t>(integer));
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint64_t));
 
 	return *this;
 }
 
+message &message::operator<<(signal const sig)
+{
+    return (*this) << static_cast<int64_t>(sig);
+}
 
 message& message::operator<<(uint8_t const unsigned_integer)
 {
-        add(reinterpret_cast<void const*>(&unsigned_integer), sizeof(uint8_t));
+	add_raw(reinterpret_cast<void const*>(&unsigned_integer), sizeof(uint8_t));
 	return *this;
 }
 
 message& message::operator<<(uint16_t const unsigned_integer)
 {
 	uint16_t network_order = htons(unsigned_integer);
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint16_t));
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint16_t));
 
 	return *this;
 }
@@ -252,15 +274,15 @@ message& message::operator<<(uint16_t const unsigned_integer)
 message& message::operator<<(uint32_t const unsigned_integer)
 {
 	uint32_t network_order = htonl(unsigned_integer);
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint32_t));
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint32_t));
 
 	return *this;
 }
 
 message& message::operator<<(uint64_t const unsigned_integer)
 {
-	uint64_t network_order = zmqpp::htonll(unsigned_integer);
-	add(reinterpret_cast<void const*>(&network_order), sizeof(uint64_t));
+	uint64_t network_order = htonll(unsigned_integer);
+	add_raw(reinterpret_cast<void const*>(&network_order), sizeof(uint64_t));
 
 	return *this;
 }
@@ -270,7 +292,7 @@ message& message::operator<<(float const floating_point)
 	assert(sizeof(float) == 4);
 
 	float network_order = zmqpp::htonf(floating_point);
-	add(&network_order, sizeof(float));
+	add_raw(&network_order, sizeof(float));
 
 	return *this;
 }
@@ -280,7 +302,7 @@ message& message::operator<<(double const double_precision)
 	assert(sizeof(double) == 8);
 
 	double network_order = zmqpp::htond(double_precision);
-	add(&network_order, sizeof(double));
+	add_raw(&network_order, sizeof(double));
 
 	return *this;
 }
@@ -288,20 +310,20 @@ message& message::operator<<(double const double_precision)
 message& message::operator<<(bool const boolean)
 {
 	uint8_t byte = (boolean) ? 1 : 0;
-	add(reinterpret_cast<void const*>(&byte), sizeof(uint8_t));
+	add_raw(reinterpret_cast<void const*>(&byte), sizeof(uint8_t));
 
 	return *this;
 }
 
 message& message::operator<<(char const* c_string)
 {
-        add(reinterpret_cast<void const*>(c_string), strlen(c_string));
+	add_raw(reinterpret_cast<void const*>(c_string), strlen(c_string));
 	return *this;
 }
 
 message& message::operator<<(std::string const& string)
 {
-        add(reinterpret_cast<void const*>(string.data()), string.size());
+	add_raw(reinterpret_cast<void const*>(string.data()), string.size());
 	return *this;
 }
 
@@ -329,10 +351,14 @@ void message::push_front(int32_t const integer)
 
 void message::push_front(int64_t const integer)
 {
-	uint64_t network_order = zmqpp::htonll(static_cast<uint64_t>(integer));
+	uint64_t network_order = htonll(static_cast<uint64_t>(integer));
 	push_front(&network_order, sizeof(uint64_t));
 }
 
+void message::push_front(signal const sig)
+{
+    push_front(static_cast<int64_t>(sig));
+}
 
 void message::push_front(uint8_t const unsigned_integer)
 {
@@ -353,7 +379,7 @@ void message::push_front(uint32_t const unsigned_integer)
 
 void message::push_front(uint64_t const unsigned_integer)
 {
-	uint64_t network_order = zmqpp::htonll(unsigned_integer);
+	uint64_t network_order = htonll(unsigned_integer);
 	push_front(&network_order, sizeof(uint64_t));
 }
 
@@ -399,16 +425,24 @@ void message::pop_back()
 	_parts.pop_back();
 }
 
+void message::remove(size_t const part)
+{
+    _parts.erase( _parts.begin() + part );
+}
+
 message::message(message&& source) NOEXCEPT
 	: _parts()
-	, _read_cursor(0)
+	, _read_cursor(source._read_cursor)
 {
 	std::swap(_parts, source._parts);
+	source._read_cursor = 0;
 }
 
 message& message::operator=(message&& source) NOEXCEPT
 {
-	std::swap(_parts, source._parts);
+        _read_cursor = source._read_cursor;
+	source._read_cursor = 0;
+	_parts = std::move(source._parts);
 	return *this;
 }
 
@@ -451,4 +485,59 @@ void message::release_callback(void* data, void* hint)
 	delete releaser;
 }
 
+bool message::is_signal() const
+{
+    if (parts() == 1 && size(0) == sizeof(signal))
+    {
+        signal s;
+        get(s, 0);
+        if ((static_cast<int64_t>(s) >> 8) == static_cast<int64_t>(signal::header))
+            return true;
+    }
+    return false;
+}
+
+#if (ZMQ_VERSION_MAJOR == 4 && ZMQ_VERSION_MINOR >= 1)
+bool message::get_property(const std::string &property, std::string &out)
+{
+	zmq_msg_t *zmq_raw_msg;
+	try
+	{
+		zmq_raw_msg = &raw_msg();
+	}
+	catch (zmqpp::exception const&) // empty
+	{
+		return false;
+	}
+
+	const char *property_value = zmq_msg_gets(zmq_raw_msg, property.c_str());
+	if (property_value == NULL)
+	{
+		// EINVAL is the only error code
+		assert(errno == EINVAL);
+		return false;
+	}
+
+	out = std::string(property_value);
+	return true;
+}
+#endif
+
+#if (ZMQ_VERSION_MAJOR >= 4) && ((ZMQ_VERSION_MAJOR >= 2) && ZMQ_BUILD_DRAFT_API)
+bool message::set_group(const std::string& group)
+{
+	// Nothing was set
+	if (_parts.empty())
+		return false;
+
+	// Use a loop to set, although in theory this message should not be multipart
+	for (size_t i = 0; i < _parts.size(); i++)
+	{
+		if (zmq_msg_set_group(&raw_msg(i), group.c_str()) < 0)
+			return false;
+	}
+
+	return true;
+}
+#endif
 }

@@ -12,9 +12,13 @@ file(GLOB_RECURSE sources_zmqpp zmqpp/*.cpp zmqpp/*.hpp zmqpp/*.h)
 
 add_library(zmqpp STATIC ${sources_zmqpp})
 
+include(GenerateExportHeader)
+generate_export_header(zmqpp EXPORT_FILE_NAME ${CMAKE_BINARY_DIR}/exports/zmqpp_export.h)
+
 target_include_directories(zmqpp
   PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/exports)
 
 target_link_libraries(zmqpp
   PRIVATE
@@ -29,7 +33,7 @@ set_target_properties(zmqpp
 
 target_compile_definitions(zmqpp
   PRIVATE
-    -DBUILD_VERSION_MAJOR=3
+    -DBUILD_VERSION_MAJOR=4
     -DBUILD_VERSION_MINOR=2
     -DBUILD_VERSION_REVISION=0
-    -DBUILD_VERSION="3.2.0")
+    -DBUILD_VERSION="4.2.0")
