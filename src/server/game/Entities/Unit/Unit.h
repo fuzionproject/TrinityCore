@@ -87,6 +87,7 @@ class Spell;
 class SpellCastTargets;
 class SpellHistory;
 class SpellInfo;
+class NewTempoarySummon;
 class Totem;
 class Transport;
 class TransportBase;
@@ -96,6 +97,7 @@ class Vehicle;
 class VehicleJoinEvent;
 
 enum ZLiquidStatus : uint32;
+enum class SummonPropertiesSlot : int8;
 
 namespace Movement
 {
@@ -366,11 +368,12 @@ enum DamageEffectType : uint8
 enum UnitTypeMask
 {
     UNIT_MASK_NONE                  = 0x00000000,
-    UNIT_MASK_SUMMON                = 0x00000001,
-    UNIT_MASK_MINION                = 0x00000002,
-    UNIT_MASK_GUARDIAN              = 0x00000004,
+    UNIT_MASK_SUMMON                = 0x00000001, // SummonPropertiesControl = 0
+    UNIT_MASK_GUARDIAN              = 0x00000002, // SummonPropertiesControl = 1
+    UNIT_MASK_PET                   = 0x00000004, // SummonPropertiesControl = 2
+
+    UNIT_MASK_MINION                = 0x00000010,
     UNIT_MASK_TOTEM                 = 0x00000008,
-    UNIT_MASK_PET                   = 0x00000010,
     UNIT_MASK_VEHICLE               = 0x00000020,
     UNIT_MASK_PUPPET                = 0x00000040,
     UNIT_MASK_HUNTER_PET            = 0x00000080,
@@ -1814,6 +1817,10 @@ class TC_GAME_API Unit : public WorldObject
         TempSummon* ToTempSummon() { if (IsSummon()) return reinterpret_cast<TempSummon*>(this); else return nullptr; }
         TempSummon const* ToTempSummon() const { if (IsSummon()) return reinterpret_cast<TempSummon const*>(this); else return nullptr; }
 
+        NewTempoarySummon* ToTempoarySummon() { if (IsSummon()) return reinterpret_cast<NewTempoarySummon*>(this); else return nullptr; }
+        NewTempoarySummon const* ToTempoarySummon() const { if (IsSummon()) return reinterpret_cast<NewTempoarySummon const*>(this); else return nullptr; }
+
+
         ObjectGuid GetTarget() const { return GetGuidValue(UNIT_FIELD_TARGET); }
         virtual void SetTarget(ObjectGuid /*guid*/) = 0;
 
@@ -2010,6 +2017,23 @@ class TC_GAME_API Unit : public WorldObject
         std::unordered_map<MovementChangeType, PlayerMovementPendingChange> m_pendingMovementChanges;
 
         /* Player Movement fields END*/
+
+        /*Tempoary Summons*/
+        std::array<ObjectGuid, 7> _summonGUIDsInSlot;
+        std::unordered_set<ObjectGuid> _summonGUIDs;
+
+    public:
+        void AddSummonGUIDToSlot(ObjectGuid summonGuid, SummonPropertiesSlot slot);
+        void AddSummonGUID(ObjectGuid summonGuid);
+        void RemoveSummonGUIDFromSlot(ObjectGuid summonGuid, SummonPropertiesSlot slot);
+        void RemoveSummonGUID(ObjectGuid summonGuid);
+        bool HasSummonInSlot(SummonPropertiesSlot slot) const;
+        void UnsummonAllSummonsDueToDeath();
+
+        NewTempoarySummon* GetSummonInSlot(SummonPropertiesSlot slot) const;
+        NewTempoarySummon* GetSummonByGUID(ObjectGuid guid) const;
+
+        /*End of Tempoary Summons*/
 };
 
 namespace Trinity

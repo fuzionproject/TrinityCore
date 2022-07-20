@@ -50,6 +50,7 @@ class Object;
 class PhaseShift;
 class Player;
 class TempSummon;
+class NewTempoarySummon;
 class Transport;
 class Unit;
 class Weather;
@@ -556,6 +557,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         void UpdateIteratorBack(Player* player);
 
         TempSummon* SummonCreature(uint32 entry, Position const& pos, SummonCreatureExtraArgs const& summonArgs = { });
+        NewTempoarySummon* SummonCreatureNew(uint32 entry, Position const& pos, SummonCreatureExtraArgs const& summonArgs = { });
         void SummonCreatureGroup(uint8 group, std::list<TempSummon*>* list = nullptr);
         Player* GetPlayer(ObjectGuid const& guid);
         AreaTrigger* GetAreaTrigger(ObjectGuid const& guid);

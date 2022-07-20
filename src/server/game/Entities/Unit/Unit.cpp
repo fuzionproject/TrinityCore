@@ -74,6 +74,7 @@
 #include "SpellMgr.h"
 #include "SpellPackets.h"
 #include "TemporarySummon.h"
+#include "NewTempoarySummon.h"
 #include "Totem.h"
 #include "Transport.h"
 #include "UnitAI.h"
@@ -9219,6 +9220,8 @@ void Unit::setDeathState(DeathState s)
         UnsummonAllTotems();
         RemoveAllControlled();
         RemoveAllAurasOnDeath();
+
+        UnsummonAllSummonsDueToDeath();
     }
 
     if (s == JUST_DIED)
@@ -15284,4 +15287,73 @@ void Unit::ProcessItemCast(PendingSpellCastRequest const& castRequest, SpellCast
 void Unit::SetGameClientMovingMe(GameClient* gameClientMovingMe)
 {
     _gameClientMovingMe = gameClientMovingMe;
+}
+
+void Unit::AddSummonGUIDToSlot(ObjectGuid summonGuid, SummonPropertiesSlot slot)
+{
+    _summonGUIDsInSlot[AsUnderlyingType(slot)] = summonGuid;
+    AddSummonGUID(summonGuid);
+}
+
+void Unit::AddSummonGUID(ObjectGuid summonGuid)
+{
+    _summonGUIDs.insert(summonGuid);
+}
+
+void Unit::RemoveSummonGUIDFromSlot(ObjectGuid summonGuid, SummonPropertiesSlot slot)
+{
+    if (_summonGUIDsInSlot[AsUnderlyingType(slot)] == summonGuid)
+        _summonGUIDsInSlot[AsUnderlyingType(slot)] = ObjectGuid::Empty;
+
+    RemoveSummonGUID(summonGuid);
+}
+
+void Unit::RemoveSummonGUID(ObjectGuid summonGuid)
+{
+    _summonGUIDs.erase(summonGuid);
+}
+
+bool Unit::HasSummonInSlot(SummonPropertiesSlot slot) const
+{
+    return _summonGUIDsInSlot[AsUnderlyingType(slot)] != ObjectGuid::Empty;
+}
+
+// This helper will unsummon all tempoary summons with SummonPropertiesFlag::DespawnOnSummonerDeath as well as summons in all slots
+void Unit::UnsummonAllSummonsDueToDeath()
+{
+    for (std::unordered_set<ObjectGuid>::const_iterator itr = _summonGUIDs.begin(); itr != _summonGUIDs.end(); ++itr)
+    {
+        if (NewTempoarySummon* summon = GetSummonByGUID(*itr))
+        {
+            if (summon->ShouldDespawnOnSummonerDeath())
+            {
+                itr = _summonGUIDs.erase(itr);
+                summon->Unsummon();
+            }
+        }
+    }
+}
+
+NewTempoarySummon* Unit::GetSummonInSlot(SummonPropertiesSlot slot) const
+{
+    if (_summonGUIDsInSlot[AsUnderlyingType(slot)].IsEmpty())
+        return nullptr;
+
+    Creature* summon = ObjectAccessor::GetCreature(*this, _summonGUIDsInSlot[AsUnderlyingType(slot)]);
+    if (!summon || !summon->IsSummon())
+        return nullptr;
+
+    return summon->ToTempoarySummon();
+}
+
+NewTempoarySummon* Unit::GetSummonByGUID(ObjectGuid guid) const
+{
+    if (_summonGUIDs.empty() || _summonGUIDs.find(guid) == _summonGUIDs.end())
+        return nullptr;
+
+    Creature* summon = ObjectAccessor::GetCreature(*this, guid);
+    if (!summon || !summon->IsSummon())
+        return nullptr;
+
+    return summon->ToTempoarySummon();
 }

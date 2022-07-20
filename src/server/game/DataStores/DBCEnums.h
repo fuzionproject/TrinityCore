@@ -616,6 +616,60 @@ enum TotemCategoryType
 };
 
 // SummonProperties.dbc, col 1
+enum class SummonPropertiesControl : uint8
+{
+    None                = 0, // Wild
+    Guardian            = 1,
+    Pet                 = 2,
+    Possessed           = 3,
+    PossessedVehicle    = 4,
+    Vehicle             = 5 // Wild, but Ride Spell will be cast
+};
+
+// SummonProperties.dbc, col 4
+enum class SummonPropertiesSlot : int8
+{
+    None                = 0,
+    Totem1              = 1,
+    Totem2              = 2,
+    Totem3              = 3,
+    Totem4              = 4,
+    Critter             = 5,
+    Quest               = 6, // Players Only
+
+    Max,
+    AnyAvailableTotem   = -1
+};
+
+enum class SummonPropertiesFlags : uint32
+{
+    None                              = 0x000000,
+    AttackSummoner                    = 0x000001, // Implemented in TempoarySummon::HandlePostSummonActions
+    HelpWhenSummonedInCombat          = 0x000002, // Implemented in TempoarySummon::HandlePostSummonActions
+    UseLevelOffset                    = 0x000004, // NYI
+    DespawnOnSummonerDeath            = 0x000008, // Implemented in Unit::UnsummonAllSummonsDueToDeath
+    OnlyVisibleToSummoner             = 0x000010, // Implemented in Spell::EffectSummonType
+    CannotDismissPet                  = 0x000020, // NYI
+    UseDemonTimeout                   = 0x000040, // NYI
+    UnlimitedSummons                  = 0x000080, // NYI
+    UseCreatureLevel                  = 0x000100, // Implemented in TempoarySummon::HandlePreSummonActions
+    JoinSummonerSpawnGroup            = 0x000200, // NYI
+    DoNotToggle                       = 0x000400, // NYI
+    DespawnWhenExpired                = 0x000800, // NYI
+    UseSummonerFaction                = 0x001000, // Implemented in TempoarySummon::AddToWorld
+    DoNotFollowMountedSummoner        = 0x002000, // NYI
+    SavePetAutocast                   = 0x004000, // NYI
+    IgnoreSummonerPhase               = 0x008000, // Wild Only - Implemented in Map::SummonCreature
+    OnlyVisibleToSummonerGroup        = 0x010000, // Implemented in Spell::EffectSummonType
+    DespawnOnSummonerLogout           = 0x020000, // NYI
+    CastRideVehicleSpellOnSummoner    = 0x040000, // NYI
+    GuardianActsLikePet               = 0x080000, // NYI
+    DontSnapSessileToGround           = 0x100000  // NYI
+};
+
+DEFINE_ENUM_FLAG(SummonPropertiesFlags);
+
+// SummonProperties.dbc, col 1
 enum SummonPropGroup
 {
     SUMMON_PROP_GROUP_UNKNOWN1       = 0,                   // 1160 spells in 3.0.3

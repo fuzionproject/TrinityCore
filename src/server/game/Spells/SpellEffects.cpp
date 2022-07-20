@@ -62,6 +62,7 @@
 #include "SpellHistory.h"
 #include "SpellMgr.h"
 #include "TemporarySummon.h"
+#include "NewTempoarySummon.h"
 #include "Totem.h"
 #include "Transport.h"
 #include "Unit.h"
@@ -1960,7 +1961,7 @@ void Spell::EffectSummonType(SpellEffIndex effIndex)
             dest = m_caster->GetRandomPoint(*destTarget, radius);
         }
 
-        if (TempSummon* summon = m_caster->GetMap()->SummonCreature(entry, *destTarget, extraArgs))
+        if (NewTempoarySummon* summon = m_caster->GetMap()->SummonCreatureNew(entry, *destTarget, extraArgs))
         {
             ExecuteLogEffectSummonObject(effIndex, summon);
 
@@ -4689,37 +4690,27 @@ void Spell::EffectResurrectPet(SpellEffIndex /*effIndex*/)
     pet->SavePetToDB(PET_SAVE_CURRENT_STATE);
 }
 
+static constexpr uint32 SPELL_TOTEMIC_RECALL_ENERGIZE = 39104;
 void Spell::EffectDestroyAllTotems(SpellEffIndex /*effIndex*/)
 {
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
         return;
 
-    int32 mana = 0;
-    for (uint8 slot = SUMMON_SLOT_TOTEM_FIRE; slot < MAX_TOTEM_SLOT; ++slot)
+    int32 refundedMana = 0;
+    for (uint8 i = AsUnderlyingType(SummonPropertiesSlot::Totem1); i <= AsUnderlyingType(SummonPropertiesSlot::Totem4); ++i)
     {
-        if (!m_caster->m_SummonSlot[slot])
+        NewTempoarySummon* summon = m_caster->GetSummonInSlot(SummonPropertiesSlot(i));
+        if (!summon)
             continue;
 
-        Creature* totem = m_caster->GetMap()->GetCreature(m_caster->m_SummonSlot[slot]);
-        if (totem && totem->IsTotem())
-        {
-            uint32 spell_id = totem->GetUInt32Value(UNIT_CREATED_BY_SPELL);
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spell_id);
-            if (spellInfo)
-            {
-                mana += spellInfo->ManaCost;
-                mana += int32(CalculatePct(m_caster->GetCreateMana(), spellInfo->ManaCostPercentage));
-            }
-            totem->ToTotem()->UnSummon();
-        }
+        if (SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(summon->GetUInt32Value(UNIT_CREATED_BY_SPELL)))
+            refundedMana += CalculatePct(spellInfo->CalcPowerCost(m_caster, m_spellInfo->GetSchoolMask()), damage);
+
+        summon->Unsummon();
     }
-    ApplyPct(mana, damage);
-    if (mana)
-    {
-        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-        args.SpellValueOverrides.AddMod(SPELLVALUE_BASE_POINT0, mana);
-        m_caster->CastSpell(m_caster, 39104, args);
-    }
+
+    if (refundedMana > 0)
+        m_caster->CastSpell(m_caster, SPELL_TOTEMIC_RECALL_ENERGIZE, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(refundedMana));
 }
 
 void Spell::EffectDurabilityDamage(SpellEffIndex effIndex)
