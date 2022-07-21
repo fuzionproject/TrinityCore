@@ -96,16 +96,13 @@ void NewTempoarySummon::Update(uint32 diff)
 {
     Creature::Update(diff);
 
-    if (m_deathState == DEAD)
-    {
-        Unsummon();
-        return;
-    }
-
     switch (_summonType)
     {
         case TEMPSUMMON_MANUAL_DESPAWN:
-        case TEMPSUMMON_DEAD_DESPAWN: // Handled above.
+            break;
+        case TEMPSUMMON_DEAD_DESPAWN:
+            if (m_deathState == DEAD)
+                Unsummon();
             break;
         case TEMPSUMMON_TIMED_DESPAWN:
             if (_summonDuration <= Milliseconds(diff))
@@ -177,6 +174,15 @@ void NewTempoarySummon::Update(uint32 diff)
             }
             else if (_summonDuration != _originalSummonDuration)
                 _summonDuration = _originalSummonDuration;
+            break;
+        case TEMPSUMMON_DIE_UPON_EXPIRE:
+            if (IsAlive() && _summonDuration <= Milliseconds(diff))
+            {
+                KillSelf();
+                Unsummon(SummonExpirationCorpseDespawnTime);
+                return;
+            }
+            _summonDuration -= Milliseconds(diff);
             break;
         default:
             TC_LOG_ERROR("entities.unit", "TempoarySummon::Update: Summon (entry: %u) uses an invalid TempSummonType (%u). Unsummoning it.", GetEntry(), _summonType);
@@ -285,4 +291,26 @@ bool NewTempoarySummon::ShouldDespawnOnSummonerDeath() const
 
     // All summons which have been registered in a slot will be unsummoned
     return SummonPropertiesSlot(_summonProperties->Slot) != SummonPropertiesSlot::None;
+}
+
+bool NewTempoarySummon::ShouldDieUponExpiration() const
+{
+    // This is for maintaining old scripts compatability
+    if (!_summonProperties)
+        return false;
+
+    if (_summonProperties->GetFlags().HasFlag(SummonPropertiesFlags::DespawnWhenExpired))
+        return false;
+
+    switch (SummonPropertiesSlot(_summonProperties->Slot))
+    {
+        case SummonPropertiesSlot::None:
+        case SummonPropertiesSlot::Quest:
+            return true;
+        default:
+            // This here is a very experimental case. So far we know that player totems should despawn immediately. However, in how far does this apply to all totem slot summons?
+            return false;
+    }
+
+    return true;
 }

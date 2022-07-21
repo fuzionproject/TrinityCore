@@ -22,6 +22,9 @@
 
 struct SummonPropertiesEntry;
 
+// This time sepcifies when a summon will despawn after dying from expiration
+static constexpr Milliseconds SummonExpirationCorpseDespawnTime = 15s;
+
 class TC_GAME_API NewTempoarySummon : public Creature
 {
 public:
@@ -43,6 +46,7 @@ public:
     Unit* GetSummoner() const;
     ObjectGuid GetSummonerGUID() const { return _summonerGUID; }
     bool ShouldDespawnOnSummonerDeath() const;
+    bool ShouldDieUponExpiration() const;
 
 protected:
     SummonPropertiesEntry const* _summonProperties;

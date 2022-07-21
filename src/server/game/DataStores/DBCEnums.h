@@ -655,7 +655,7 @@ enum class SummonPropertiesFlags : uint32
     UseCreatureLevel                  = 0x000100, // Implemented in TempoarySummon::HandlePreSummonActions
     JoinSummonerSpawnGroup            = 0x000200, // NYI
     DoNotToggle                       = 0x000400, // NYI
-    DespawnWhenExpired                = 0x000800, // NYI
+    DespawnWhenExpired                = 0x000800, // Implemented in Map::SummonCreature
     UseSummonerFaction                = 0x001000, // Implemented in TempoarySummon::AddToWorld
     DoNotFollowMountedSummoner        = 0x002000, // NYI
     SavePetAutocast                   = 0x004000, // NYI

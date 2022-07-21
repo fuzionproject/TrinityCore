@@ -21,10 +21,11 @@ void NewGuardian::HandlePreSummonActions(uint8 creatureLevel)
 {
     NewTempoarySummon::HandlePreSummonActions(creatureLevel);
 
-    // Guardians inherit their summoner's faction and level unless a flag forbids it.
+    // Guardians inherit their summoner's faction and level unless a flag forbids it or the properties override it
     if (Unit* summoner = GetSummoner())
     {
-        SetFaction(summoner->GetFaction());
+        if (!_summonProperties || _summonProperties->Faction == 0)
+            SetFaction(summoner->GetFaction());
 
         if (_summonProperties && !_summonProperties->GetFlags().HasFlag(SummonPropertiesFlags::UseCreatureLevel))
             SetLevel(summoner->getLevel());

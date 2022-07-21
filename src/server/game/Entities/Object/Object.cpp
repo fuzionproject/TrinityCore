@@ -2182,9 +2182,14 @@ NewTempoarySummon* Map::SummonCreatureNew(uint32 entry, Position const& pos, Sum
     summon->SetHomePosition(pos);
     summon->SetPrivateObjectOwner(summonArgs.PrivateObjectOwner);
     summon->SetSummonDuration(Milliseconds(summonArgs.SummonDuration));
-    if (summonArgs.SummonDuration > 0)
-        summon->SetSummonType(TEMPSUMMON_TIMED_DESPAWN);
 
+    if (summonArgs.SummonDuration > 0)
+    {
+        if (summon->ShouldDieUponExpiration())
+            summon->SetSummonType(TEMPSUMMON_DIE_UPON_EXPIRE);
+        else
+            summon->SetSummonType(TEMPSUMMON_TIMED_DESPAWN);
+    }
 
     summon->HandlePreSummonActions(summonArgs.CreatureLevel);
 
