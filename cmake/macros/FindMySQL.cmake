@@ -11,7 +11,7 @@
 # also defined, but not for general use are
 # MYSQL_LIBRARY, where to find the MySQL library.
 
-set( MYSQL_FOUND 0 )
+set( MYSQL_FOUND 1 )
 
 if( UNIX )
   set(MYSQL_CONFIG_PREFER_PATH "$ENV{MYSQL_HOME}/bin" CACHE FILEPATH
