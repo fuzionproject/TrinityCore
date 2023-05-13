@@ -31,6 +31,7 @@ EndScriptData */
 #include "GameObject.h"
 #include "Language.h"
 #include "Log.h"
+#include "Map.h"
 #include "MapManager.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -309,7 +310,7 @@ public:
             mapId =   fields[6].GetUInt16();
             phase =   fields[7].GetUInt32();
             poolId =  sPoolMgr->IsPartOfAPool<GameObject>(guidLow);
-            if (!poolId || sPoolMgr->IsSpawnedObject<GameObject>(guidLow))
+            if (!poolId || sPoolMgr->IsSpawnedObject<GameObject>(player->GetMap()->GetPoolData(), guidLow))
                 found = true;
         } while (result->NextRow() && !found);
 
@@ -620,9 +621,9 @@ public:
         displayId = gameObjectInfo->displayId;
         name = gameObjectInfo->name;
         if (type == GAMEOBJECT_TYPE_CHEST)
-            lootId = gameObjectInfo->chest.lootId;
+            lootId = gameObjectInfo->chest.chestLoot;
         else if (type == GAMEOBJECT_TYPE_FISHINGHOLE)
-            lootId = gameObjectInfo->fishinghole.lootId;
+            lootId = gameObjectInfo->fishinghole.chestLoot;
 
         // If we have a real object, send some info about it
         if (thisGO)

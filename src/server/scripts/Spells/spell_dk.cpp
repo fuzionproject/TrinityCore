@@ -110,34 +110,38 @@ enum DKSpellIcons
     DK_ICON_ID_BLOOD_SHIELD_MASTERY             = 2624
 };
 
-// 48707 - Anti-Magic Shell (on self)
+// 48707 - Anti-Magic Shell
 class spell_dk_anti_magic_shell : public AuraScript
 {
     bool Load() override
     {
-        absorbPct = GetSpellInfo()->Effects[EFFECT_0].CalcValue(GetCaster());
-        healthPct = GetSpellInfo()->Effects[EFFECT_1].CalcValue(GetCaster());
+        _healthAmount = CalculatePct(GetCaster()->GetMaxHealth(), GetSpellInfo()->Effects[EFFECT_1].CalcValue(GetCaster()));
         return true;
     }
 
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32 & amount, bool & /*canBeRecalculated*/)
+    // We do have to do a manual absorb handling because the tooltip of anti-magic shell only absorbs a part of the damage, not all of it
+    void Absorb(AuraEffect* aurEff, DamageInfo& damageInfo, uint32& /*absorbAmount*/)
     {
-        amount = GetCaster()->CountPctFromMaxHealth(healthPct);
-    }
+        PreventDefaultAction();
 
-    void Absorb(AuraEffect* /*aurEff*/, DamageInfo & dmgInfo, uint32 & absorbAmount)
-    {
-        absorbAmount = std::min(CalculatePct(dmgInfo.GetDamage(), absorbPct), GetTarget()->CountPctFromMaxHealth(healthPct));
+        int32 currentAbsorb = _healthAmount;
+        currentAbsorb = RoundToInterval(currentAbsorb, 0, CalculatePct<int32>(damageInfo.GetDamage(), aurEff->GetAmount()));
+        damageInfo.AbsorbDamage(currentAbsorb);
+
+        if (_healthAmount >= 0)
+        {
+            _healthAmount -= currentAbsorb;
+            if (_healthAmount <= 0)
+                aurEff->GetBase()->Remove(AuraRemoveFlags::ByEnemySpell);
+        }
     }
 
     void Register() override
     {
-        DoEffectCalcAmount.Register(&spell_dk_anti_magic_shell::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
         OnEffectAbsorb.Register(&spell_dk_anti_magic_shell::Absorb, EFFECT_0);
     }
 private:
-    int32 absorbPct;
-    int32 healthPct;
+    int32 _healthAmount = 0;
 };
 
 // 50461 - Anti-Magic Zone
@@ -145,7 +149,14 @@ class spell_dk_anti_magic_zone : public AuraScript
 {
     bool Load() override
     {
-        absorbPct = GetSpellInfo()->Effects[EFFECT_0].CalcValue(GetCaster());
+        _absorbAmount = 0;
+        if (!GetCaster()->IsSummon())
+            return true;
+
+        TempSummon* summon = GetCaster()->ToTempSummon();
+        if (Unit* summoner = summon->GetSummoner())
+            _absorbAmount = sSpellMgr->AssertSpellInfo(SPELL_DK_ANTI_MAGIC_SHELL_TALENT)->Effects[0].CalcValue(summoner) + 2 * summoner->GetTotalAttackPowerValue(BASE_ATTACK);
+
         return true;
     }
 
@@ -154,26 +165,29 @@ class spell_dk_anti_magic_zone : public AuraScript
         return ValidateSpellInfo({ SPELL_DK_ANTI_MAGIC_SHELL_TALENT });
     }
 
-    void CalculateAmount(AuraEffect const* /*aurEff*/, int32 & amount, bool & /*canBeRecalculated*/)
+    void Absorb(AuraEffect* aurEff, DamageInfo& damageInfo, uint32& /*absorbAmount*/)
     {
-        SpellInfo const* talentSpell = sSpellMgr->AssertSpellInfo(SPELL_DK_ANTI_MAGIC_SHELL_TALENT);
-        amount = talentSpell->Effects[EFFECT_0].CalcValue(GetCaster());
-        if (Player* player = GetCaster()->ToPlayer())
-            amount += int32(2 * player->GetTotalAttackPowerValue(BASE_ATTACK));
-    }
+        PreventDefaultAction();
 
-    void Absorb(AuraEffect* /*aurEff*/, DamageInfo & dmgInfo, uint32 & absorbAmount)
-    {
-        absorbAmount = CalculatePct(dmgInfo.GetDamage(), absorbPct);
+        int32 currentAbsorb = _absorbAmount;
+        currentAbsorb = RoundToInterval(currentAbsorb, 0, CalculatePct<int32>(damageInfo.GetDamage(), aurEff->GetAmount()));
+        damageInfo.AbsorbDamage(currentAbsorb);
+
+        if (_absorbAmount >= 0)
+        {
+            _absorbAmount -= currentAbsorb;
+            if (_absorbAmount <= 0)
+                if (Unit* caster = GetCaster())
+                    caster->InterruptNonMeleeSpells(true);
+        }
     }
 
     void Register() override
     {
-        DoEffectCalcAmount.Register(&spell_dk_anti_magic_zone::CalculateAmount, EFFECT_0, SPELL_AURA_SCHOOL_ABSORB);
         OnEffectAbsorb.Register(&spell_dk_anti_magic_zone::Absorb, EFFECT_0);
     }
 private:
-    uint32 absorbPct = 0;
+    int32 _absorbAmount = 0;
 };
 
 // 48721 - Blood Boil
@@ -343,6 +357,21 @@ class spell_dk_death_coil : public SpellScript
 // 52751 - Death Gate
 class spell_dk_death_gate : public SpellScript
 {
+    void HandleScript(SpellEffIndex /*effIndex*/)
+    {
+        if (Unit* target = GetHitUnit())
+            target->CastSpell(target, GetEffectValue(), false);
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget.Register(&spell_dk_death_gate::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+    }
+};
+
+// 53822 - Death Gate
+class spell_dk_death_gate_teleport : public SpellScript
+{
     SpellCastResult CheckClass()
     {
         if (GetCaster()->getClass() != CLASS_DEATH_KNIGHT)
@@ -354,17 +383,9 @@ class spell_dk_death_gate : public SpellScript
         return SPELL_CAST_OK;
     }
 
-    void HandleScript(SpellEffIndex effIndex)
-    {
-        PreventHitDefaultEffect(effIndex);
-        if (Unit* target = GetHitUnit())
-            target->CastSpell(target, GetEffectValue(), false);
-    }
-
     void Register() override
     {
-        OnCheckCast.Register(&spell_dk_death_gate::CheckClass);
-        OnEffectHitTarget.Register(&spell_dk_death_gate::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+        OnCheckCast.Register(&spell_dk_death_gate_teleport::CheckClass);
     }
 };
 
@@ -1839,6 +1860,7 @@ void AddSC_deathknight_spell_scripts()
     RegisterSpellScript(spell_dk_death_and_decay);
     RegisterSpellScript(spell_dk_death_coil);
     RegisterSpellScript(spell_dk_death_gate);
+    RegisterSpellScript(spell_dk_death_gate_teleport);
     RegisterSpellScript(spell_dk_death_grip);
     RegisterSpellScript(spell_dk_death_grip_initial);
     RegisterSpellScript(spell_dk_item_death_knight_t12_dps_4p_bonus);

@@ -2151,10 +2151,10 @@ ZoneScript* WorldObject::FindZoneScript() const
             return reinterpret_cast<ZoneScript*>(instanceMap->GetInstanceScript());
         else if (!map->IsBattlegroundOrArena())
         {
-            if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(GetZoneId()))
+            if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(map, GetZoneId()))
                 return bf;
             else
-                return sOutdoorPvPMgr->GetZoneScript(GetZoneId());
+                return sOutdoorPvPMgr->GetOutdoorPvPToZoneId(map, GetZoneId());
         }
     }
     return nullptr;
@@ -2952,6 +2952,8 @@ SpellCastResult WorldObject::CastSpell(SpellCastTargets const& targets, uint32 s
                     spell->m_CastItem = triggeringAuraCaster->GetItemByGuid(args.TriggeringAura->GetBase()->GetCastItemGUID());
     }
 
+    spell->m_customArg = args.CustomArg;
+
     return spell->prepare(targets, args.TriggeringAura);
 }
 
@@ -3466,7 +3468,7 @@ void WorldObject::MovePositionToFirstCollision(Position &pos, float dist, float 
     // Unit is flying. Do a VMap check to avoid moving the position into walls or obstacles
     if (path.GetPathType() & PATHFIND_NOT_USING_PATH)
     {
-        uint32 terrainMapId = PhasingHandler::GetTerrainMapId(GetPhaseShift(), GetMap()->GetTerrain(), pos.m_positionX, pos.m_positionY);
+        uint32 terrainMapId = PhasingHandler::GetTerrainMapId(GetPhaseShift(), GetMapId(), GetMap()->GetTerrain(), pos.m_positionX, pos.m_positionY);
         col = VMAP::VMapFactory::createOrGetVMapManager()->getObjectHitPos(terrainMapId,
             pos.m_positionX, pos.m_positionY, pos.m_positionZ + halfHeight,
             destx, desty, destz + halfHeight,

@@ -53,6 +53,7 @@
 #include "Pet.h"
 #include "PhasingHandler.h"
 #include "Player.h"
+#include "QuestDef.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
@@ -727,7 +728,7 @@ void Spell::EffectTriggerRitualOfSummoning(SpellEffIndex effIndex)
                 continue;
             }
 
-            Map::EnterState enterState = sMapMgr->PlayerCannotEnter(player->GetMapId(), member, false);
+            Map::EnterState enterState = Map::PlayerCannotEnter(player->GetMapId(), member, false);
             if (enterState != Map::CAN_ENTER)
             {
                 if (enterState == Map::CANNOT_ENTER_INSTANCE_BIND_MISMATCH)
@@ -1611,20 +1612,20 @@ void Spell::SendLoot(ObjectGuid guid, LootType loottype)
 
             case GAMEOBJECT_TYPE_SPELL_FOCUS:
                 // triggering linked GO
-                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->spellFocus.linkedTrapId)
+                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->spellFocus.linkedTrap)
                     gameObjTarget->TriggeringLinkedGameObject(trapEntry, player);
                 return;
 
             case GAMEOBJECT_TYPE_CHEST:
                 /// @todo possible must be moved to loot release (in different from linked triggering)
-                if (gameObjTarget->GetGOInfo()->chest.eventId)
+                if (gameObjTarget->GetGOInfo()->chest.triggeredEvent)
                 {
-                    TC_LOG_DEBUG("spells", "Chest ScriptStart id %u for GO %u", gameObjTarget->GetGOInfo()->chest.eventId, gameObjTarget->GetSpawnId());
-                    GameEvents::Trigger(gameObjTarget->GetGOInfo()->chest.eventId, player, gameObjTarget);
+                    TC_LOG_DEBUG("spells", "Chest ScriptStart id %u for GO %u", gameObjTarget->GetGOInfo()->chest.triggeredEvent, gameObjTarget->GetSpawnId());
+                    GameEvents::Trigger(gameObjTarget->GetGOInfo()->chest.triggeredEvent, player, gameObjTarget);
                 }
 
                 // triggering linked GO
-                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->chest.linkedTrapId)
+                if (uint32 trapEntry = gameObjTarget->GetGOInfo()->chest.linkedTrap)
                     gameObjTarget->TriggeringLinkedGameObject(trapEntry, player);
 
                 // Don't return, let loots been taken
@@ -1655,16 +1656,16 @@ void Spell::EffectOpenLock(SpellEffIndex effIndex)
     ObjectGuid guid;
 
     // Get lockId
+    GameObjectTemplate const* goInfo;
     if (gameObjTarget)
     {
-        GameObjectTemplate const* goInfo = gameObjTarget->GetGOInfo();
-
+        goInfo = gameObjTarget->GetGOInfo();
         if (goInfo->CannotBeUsedUnderImmunity() && m_caster->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE))
             return;
 
         // Arathi Basin banner opening. /// @todo Verify correctness of this check
         if ((goInfo->type == GAMEOBJECT_TYPE_BUTTON && goInfo->button.noDamageImmune) ||
-            (goInfo->type == GAMEOBJECT_TYPE_GOOBER && goInfo->goober.losOK))
+            (goInfo->type == GAMEOBJECT_TYPE_GOOBER && goInfo->goober.requireLOS))
         {
             //CanUseBattlegroundObject() already called in CheckCast()
             // in battleground check
@@ -1711,7 +1712,7 @@ void Spell::EffectOpenLock(SpellEffIndex effIndex)
 
     SkillType skillId = SKILL_NONE;
     int32 reqSkillValue = 0;
-    int32 skillValue;
+    int32 skillValue = 0;
 
     SpellCastResult res = CanOpenLock(effIndex, lockId, skillId, reqSkillValue, skillValue);
     if (res != SPELL_CAST_OK)
@@ -1733,29 +1734,33 @@ void Spell::EffectOpenLock(SpellEffIndex effIndex)
         itemTarget->SetState(ITEM_CHANGED, itemTarget->GetOwner());
     }
 
-    // not allow use skill grow at item base open
-    if (!m_CastItem && skillId != SKILL_NONE)
+    if (!m_CastItem)
     {
-        // update skill if really known
-        if (uint32 pureSkillValue = player->GetPureSkillValue(skillId))
+        bool tapped = gameObjTarget ? gameObjTarget->IsTappedByPlayer(player->GetGUID()) : false;
+        if (!tapped)
         {
-            if (gameObjTarget)
+            // Update skill when involved
+            if (skillId != SKILL_NONE)
+                if (uint32 pureSkillValue = player->GetPureSkillValue(skillId))
+                    if (gameObjTarget || itemTarget)
+                        player->UpdateGatherSkill(skillId, pureSkillValue, reqSkillValue);
+
+            // Some chests do grant experience when opened
+            if (goInfo->type == GAMEOBJECT_TYPE_CHEST)
             {
-                // Allow one skill-up until respawned
-                if (!gameObjTarget->IsInSkillupList(player->GetGUID().GetCounter()) &&
-                    player->UpdateGatherSkill(skillId, pureSkillValue, reqSkillValue))
+                // Chests, such as gathering nodes and treasure chests calculate their XP rewards just like quests
+                if (uint8 xpDifficulty = goInfo->chest.xpDifficulty)
                 {
-                    gameObjTarget->AddToSkillupList(player->GetGUID().GetCounter());
-                    player->GiveXpForGather(skillId);
+                    int32 xpLevel = goInfo->chest.xpMinLevel;
+                    player->GiveXP(Quest::CalcXPReward(player->getLevel(), xpLevel, xpDifficulty), nullptr);
                 }
             }
-            else if (itemTarget)
-            {
-                // Do one skill-up
-                player->UpdateGatherSkill(skillId, pureSkillValue, reqSkillValue);
-            }
         }
+
+        if (!tapped && gameObjTarget)
+            gameObjTarget->AddPlayerToTapperList(player->GetGUID());
     }
+
     ExecuteLogEffectOpenLock(effIndex, gameObjTarget ? (Object*)gameObjTarget : (Object*)itemTarget);
 }
 
@@ -1984,30 +1989,27 @@ void Spell::EffectSummonType(SpellEffIndex effIndex)
         }
     }
 
-    if (unitCaster)
+    for (uint32 i = 0; i < summonCount; ++i)
     {
-        for (uint32 i = 0; i < summonCount; ++i)
+        Position dest = *destTarget;
+        if (summonCount > 1)
         {
-            Position dest = *destTarget;
-            if (summonCount > 1)
+            // Multiple summons are summoned at random points within the destination radius
+            float radius = m_spellInfo->Effects[effIndex].CalcRadius();
+            dest = caster->GetRandomPoint(*destTarget, radius);
+        }
+
+        if (TempSummon* summon = caster->GetMap()->SummonCreature(entry, *destTarget, extraArgs))
+        {
+            ExecuteLogEffectSummonObject(effIndex, summon);
+
+            if (summonCount == 1 && summon->IsVehicle())
             {
-                // Multiple summons are summoned at random points within the destination radius
-                float radius = m_spellInfo->Effects[effIndex].CalcRadius();
-                dest = unitCaster->GetRandomPoint(*destTarget, radius);
-            }
+                if (useHardcodedRideSpell)
+                    caster->CastSpell(summon, VEHICLE_SPELL_RIDE_HARDCODED, CastSpellExtraArgs(true).AddSpellBP0(extraArgs.SeatNumber));
+                else if (extraArgs.RideSpell)
+                    caster->CastSpell(summon, extraArgs.RideSpell, true);
 
-            if (TempSummon* summon = unitCaster->GetMap()->SummonCreature(entry, *destTarget, extraArgs))
-            {
-                ExecuteLogEffectSummonObject(effIndex, summon);
-
-                if (summonCount == 1 && summon->IsVehicle())
-                {
-                    if (useHardcodedRideSpell)
-                        unitCaster->CastSpell(summon, VEHICLE_SPELL_RIDE_HARDCODED, CastSpellExtraArgs(true).AddSpellBP0(extraArgs.SeatNumber));
-                    else if (extraArgs.RideSpell)
-                        unitCaster->CastSpell(summon, extraArgs.RideSpell, true);
-
-                }
             }
         }
     }

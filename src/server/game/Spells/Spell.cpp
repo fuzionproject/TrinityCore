@@ -6277,9 +6277,6 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* param1 /*= nullptr*/, uint
                                     if (targetBind->perm && targetBind->save != casterBind->save)
                                         return SPELL_FAILED_TARGET_LOCKED_TO_RAID_INSTANCE;
 
-                        InstanceTemplate const* instance = sObjectMgr->GetInstanceTemplate(mapId);
-                        if (!instance)
-                            return SPELL_FAILED_TARGET_NOT_IN_INSTANCE;
                         if (!target->Satisfy(sObjectMgr->GetAccessRequirement(mapId, difficulty), mapId))
                             return SPELL_FAILED_BAD_TARGETS;
                     }
@@ -6412,14 +6409,6 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* param1 /*= nullptr*/, uint
                 if (unitCaster->IsInWater() && m_spellInfo->HasAura(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED))
                     return SPELL_FAILED_ONLY_ABOVEWATER;
 
-                // Ignore map check if spell have AreaId. AreaId already checked and this prevent special mount spells
-                bool allowMount = !unitCaster->GetMap()->IsDungeon() || unitCaster->GetMap()->IsBattlegroundOrArena();
-                InstanceTemplate const* it = sObjectMgr->GetInstanceTemplate(unitCaster->GetMapId());
-                if (it)
-                    allowMount = it->AllowMount;
-                if (unitCaster->GetTypeId() == TYPEID_PLAYER && !allowMount && !m_spellInfo->AreaGroupId)
-                    return SPELL_FAILED_NO_MOUNTS_ALLOWED;
-
                 if (unitCaster->IsInDisallowedMountForm())
                 {
                     if (mountResult)
@@ -6451,7 +6440,7 @@ SpellCastResult Spell::CheckCast(bool strict, uint32* param1 /*= nullptr*/, uint
                 // allow always ghost flight spells
                 if (m_originalCaster && m_originalCaster->GetTypeId() == TYPEID_PLAYER && m_originalCaster->IsAlive())
                 {
-                    Battlefield* Bf = sBattlefieldMgr->GetBattlefieldToZoneId(m_originalCaster->GetZoneId());
+                    Battlefield* Bf = sBattlefieldMgr->GetBattlefieldToZoneId(m_originalCaster->GetMap(), m_originalCaster->GetZoneId());
                     if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(m_originalCaster->GetAreaId()))
                         if (area->Flags & AREA_FLAG_NO_FLY_ZONE  || (Bf && !Bf->CanFlyIn()))
                             return (_triggeredCastFlags & TRIGGERED_DONT_REPORT_CAST_ERROR) ? SPELL_FAILED_DONT_REPORT : SPELL_FAILED_NOT_HERE;
@@ -6586,12 +6575,6 @@ SpellCastResult Spell::CheckCasterAuras(uint32* param1) const
 
     // SPELL_ATTR5_USABLE_WHILE_CONFUSED by default only disorient (ie no polymorph)
     bool usableWhileConfused = m_spellInfo->HasAttribute(SPELL_ATTR5_ALLOW_WHILE_CONFUSED);
-
-    // Glyph of Pain Suppression
-    // Allow Pain Suppression and Guardian Spirit to be cast while stunned
-    // there is no other way to handle it
-    if ((m_spellInfo->Id == 33206 || m_spellInfo->Id == 47788) && !unitCaster->HasAura(63248))
-        usableWhileStunned = false;
 
     // Check whether the cast should be prevented by any state you might have.
     SpellCastResult result = SPELL_CAST_OK;

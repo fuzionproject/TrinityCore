@@ -286,14 +286,14 @@ ObjectMgr::~ObjectMgr()
         delete itr->second;
 }
 
-void ObjectMgr::AddLocaleString(std::string const& value, LocaleConstant localeConstant, std::vector<std::string>& data)
+void ObjectMgr::AddLocaleString(std::string&& value, LocaleConstant localeConstant, std::vector<std::string>& data)
 {
     if (!value.empty())
     {
         if (data.size() <= size_t(localeConstant))
             data.resize(localeConstant + 1);
 
-        data[localeConstant] = value;
+        data[localeConstant] = std::move(value);
     }
 }
 
@@ -343,18 +343,14 @@ void ObjectMgr::LoadCreatureLocales()
         uint32 id               = fields[0].GetUInt32();
         std::string localeName  = fields[1].GetString();
 
-        std::string name        = fields[2].GetString();
-        std::string femaleName  = fields[3].GetString();
-        std::string title       = fields[4].GetString();
-
-        CreatureLocale& data = _creatureLocaleStore[id];
         LocaleConstant locale = GetLocaleByName(localeName);
         if (locale == LOCALE_enUS)
             continue;
 
-        AddLocaleString(name,       locale, data.Name);
-        AddLocaleString(femaleName, locale, data.FemaleName);
-        AddLocaleString(title,      locale, data.Title);
+        CreatureLocale& data = _creatureLocaleStore[id];
+        AddLocaleString(fields[2].GetString(), locale, data.Name);
+        AddLocaleString(fields[3].GetString(), locale, data.FemaleName);
+        AddLocaleString(fields[4].GetString(), locale, data.Title);
 
     } while (result->NextRow());
 
@@ -411,12 +407,13 @@ void ObjectMgr::LoadPointOfInterestLocales()
 
         uint32 id               = fields[0].GetUInt32();
         std::string localeName  = fields[1].GetString();
-        std::string name        = fields[2].GetString();
+
+        LocaleConstant locale = GetLocaleByName(localeName);
+        if (locale == LOCALE_enUS)
+            continue;
 
         PointOfInterestLocale& data = _pointOfInterestLocaleStore[id];
-        LocaleConstant locale = GetLocaleByName(localeName);
-
-        AddLocaleString(name, locale, data.Name);
+        AddLocaleString(fields[2].GetString(), locale, data.Name);
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u points_of_interest locale strings in %u ms", uint32(_pointOfInterestLocaleStore.size()), GetMSTimeDiffToNow(oldMSTime));
@@ -567,8 +564,8 @@ void ObjectMgr::LoadCreatureTemplateAddons()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                 0    1               2                   3      4       5       6      7          8                9             10                      11
-    QueryResult result = WorldDatabase.Query("SELECT entry, waypointPathId, cyclicSplinePathId, mount, bytes1, bytes2, emote, aiAnimKit, movementAnimKit, meleeAnimKit, visibilityDistanceType, auras FROM creature_template_addon");
+    //                                               0      1               2                   3      4           5         6         7            8         9      10         11               12            13                      14
+    QueryResult result = WorldDatabase.Query("SELECT entry, waypointPathId, cyclicSplinePathId, mount, StandState, AnimTier, VisFlags, SheathState, PvPFlags, emote, aiAnimKit, movementAnimKit, meleeAnimKit, visibilityDistanceType, auras FROM creature_template_addon");
 
     if (!result)
     {
@@ -594,15 +591,18 @@ void ObjectMgr::LoadCreatureTemplateAddons()
         creatureAddon.waypointPathId            = fields[1].GetUInt32();
         creatureAddon.cyclicSplinePathId        = fields[2].GetUInt32();
         creatureAddon.mount                     = fields[3].GetUInt32();
-        creatureAddon.bytes1                    = fields[4].GetUInt32();
-        creatureAddon.bytes2                    = fields[5].GetUInt32();
-        creatureAddon.emote                     = fields[6].GetUInt32();
-        creatureAddon.aiAnimKit                 = fields[7].GetUInt16();
-        creatureAddon.movementAnimKit           = fields[8].GetUInt16();
-        creatureAddon.meleeAnimKit              = fields[9].GetUInt16();
-        creatureAddon.visibilityDistanceType = VisibilityDistanceType(fields[10].GetUInt8());
+        creatureAddon.standState                = fields[4].GetUInt8();
+        creatureAddon.animTier                  = fields[5].GetUInt8();
+        creatureAddon.visFlags                  = fields[6].GetUInt8();
+        creatureAddon.sheathState               = fields[7].GetUInt8();
+        creatureAddon.pvpFlags                  = fields[8].GetUInt8();
+        creatureAddon.emote                     = fields[9].GetUInt32();
+        creatureAddon.aiAnimKit                 = fields[10].GetUInt16();
+        creatureAddon.movementAnimKit           = fields[11].GetUInt16();
+        creatureAddon.meleeAnimKit              = fields[12].GetUInt16();
+        creatureAddon.visibilityDistanceType = VisibilityDistanceType(fields[13].GetUInt8());
 
-        Tokenizer tokens(fields[11].GetString(), ' ');
+        Tokenizer tokens(fields[14].GetString(), ' ');
         uint8 i = 0;
         creatureAddon.auras.resize(tokens.size());
         for (Tokenizer::const_iterator itr = tokens.begin(); itr != tokens.end(); ++itr)
@@ -634,6 +634,26 @@ void ObjectMgr::LoadCreatureTemplateAddons()
                 creatureAddon.mount = 0;
             }
         }
+
+        if (creatureAddon.standState >= MAX_UNIT_STAND_STATE)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (Entry: %u) has invalid unit stand state (%u) defined in `creature_template_addon`. Truncated to 0.", entry, creatureAddon.standState);
+            creatureAddon.standState = 0;
+        }
+
+        if (AnimationTier(creatureAddon.animTier) >= AnimationTier::Max)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (Entry: %u) has invalid animation tier (%u) defined in `creature_template_addon`. Truncated to 0.", entry, creatureAddon.animTier);
+            creatureAddon.animTier = 0;
+        }
+
+        if (creatureAddon.sheathState >= MAX_SHEATH_STATE)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (Entry: %u) has invalid sheath state (%u) defined in `creature_template_addon`. Truncated to 0.", entry, creatureAddon.sheathState);
+            creatureAddon.sheathState = 0;
+        }
+
+        // PvPFlags don't need any checking for the time being since they cover the entire range of a byte
 
         if (!sEmotesStore.LookupEntry(creatureAddon.emote))
         {
@@ -1151,8 +1171,8 @@ void ObjectMgr::LoadCreatureAddons()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                               0     1               2                   3      4       5       6      7          8                9             10                      11
-    QueryResult result = WorldDatabase.Query("SELECT guid, waypointPathId, cyclicSplinePathId, mount, bytes1, bytes2, emote, aiAnimKit, movementAnimKit, meleeAnimKit, visibilityDistanceType, auras FROM creature_addon");
+    //                                               0     1               2                   3      4           5         6         7            8         9      10         11               12            13                      14
+    QueryResult result = WorldDatabase.Query("SELECT guid, waypointPathId, cyclicSplinePathId, mount, StandState, AnimTier, VisFlags, SheathState, PvPFlags, emote, aiAnimKit, movementAnimKit, meleeAnimKit, visibilityDistanceType, auras FROM creature_addon");
 
     if (!result)
     {
@@ -1206,15 +1226,18 @@ void ObjectMgr::LoadCreatureAddons()
         }
 
         creatureAddon.mount                     = fields[3].GetUInt32();
-        creatureAddon.bytes1                    = fields[4].GetUInt32();
-        creatureAddon.bytes2                    = fields[5].GetUInt32();
-        creatureAddon.emote                     = fields[6].GetUInt32();
-        creatureAddon.aiAnimKit                 = fields[7].GetUInt16();
-        creatureAddon.movementAnimKit           = fields[8].GetUInt16();
-        creatureAddon.meleeAnimKit              = fields[9].GetUInt16();
-        creatureAddon.visibilityDistanceType    = VisibilityDistanceType(fields[10].GetUInt8());
+        creatureAddon.standState                = fields[4].GetUInt8();
+        creatureAddon.animTier                  = fields[5].GetUInt8();
+        creatureAddon.visFlags                  = fields[6].GetUInt8();
+        creatureAddon.sheathState               = fields[7].GetUInt8();
+        creatureAddon.pvpFlags                  = fields[8].GetUInt8();
+        creatureAddon.emote                     = fields[9].GetUInt32();
+        creatureAddon.aiAnimKit                 = fields[10].GetUInt16();
+        creatureAddon.movementAnimKit           = fields[11].GetUInt16();
+        creatureAddon.meleeAnimKit              = fields[12].GetUInt16();
+        creatureAddon.visibilityDistanceType    = VisibilityDistanceType(fields[13].GetUInt8());
 
-        Tokenizer tokens(fields[11].GetString(), ' ');
+        Tokenizer tokens(fields[14].GetString(), ' ');
         uint8 i = 0;
         creatureAddon.auras.resize(tokens.size());
         for (Tokenizer::const_iterator itr = tokens.begin(); itr != tokens.end(); ++itr)
@@ -1246,6 +1269,26 @@ void ObjectMgr::LoadCreatureAddons()
                 creatureAddon.mount = 0;
             }
         }
+
+        if (creatureAddon.standState >= MAX_UNIT_STAND_STATE)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (GUID: %u) has invalid unit stand state (%u) defined in `creature_addon`. Truncated to 0.", guid, creatureAddon.standState);
+            creatureAddon.standState = 0;
+        }
+
+        if (AnimationTier(creatureAddon.animTier) >= AnimationTier::Max)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (GUID: %u) has invalid animation tier (%u) defined in `creature_addon`. Truncated to 0.", guid, creatureAddon.animTier);
+            creatureAddon.animTier = 0;
+        }
+
+        if (creatureAddon.sheathState >= MAX_SHEATH_STATE)
+        {
+            TC_LOG_ERROR("sql.sql", "Creature (GUID: %u) has invalid sheath state (%u) defined in `creature_addon`. Truncated to 0.", guid, creatureAddon.sheathState);
+            creatureAddon.sheathState = 0;
+        }
+
+        // PvPFlags don't need any checking for the time being since they cover the entire range of a byte
 
         if (!sEmotesStore.LookupEntry(creatureAddon.emote))
         {
@@ -2071,7 +2114,7 @@ void ObjectMgr::LoadCreatures()
         data.movementType   = fields[14].GetUInt8();
         data.spawnMask      = fields[15].GetUInt8();
         int16 gameEvent     = fields[16].GetInt8();
-        uint32 PoolId       = fields[17].GetUInt32();
+        data.poolId         = fields[17].GetUInt32();
         data.npcflag        = fields[18].GetUInt32();
         data.unit_flags     = fields[19].GetUInt32();
         data.dynamicflags   = fields[20].GetUInt32();
@@ -2211,8 +2254,8 @@ void ObjectMgr::LoadCreatures()
             WorldDatabase.Execute(stmt);
         }
 
-        // Add to grid if not managed by the game event or pool system
-        if (gameEvent == 0 && PoolId == 0)
+        // Add to grid if not managed by the game event
+        if (gameEvent == 0)
             AddCreatureToGrid(guid, &data);
     }
     while (result->NextRow());
@@ -2246,103 +2289,6 @@ void ObjectMgr::RemoveCreatureFromGrid(ObjectGuid::LowType guid, CreatureData co
             cell_guids.creatures.erase(guid);
         }
     }
-}
-
-ObjectGuid::LowType ObjectMgr::AddGameObjectData(uint32 entry, uint32 mapId, Position const& pos, QuaternionData const& rot, uint32 spawntimedelay /*= 0*/)
-{
-    GameObjectTemplate const* goinfo = GetGameObjectTemplate(entry);
-    if (!goinfo)
-        return 0;
-
-    Map* map = sMapMgr->CreateBaseMap(mapId);
-    if (!map)
-        return 0;
-
-    ObjectGuid::LowType spawnId = GenerateGameObjectSpawnId();
-
-    GameObjectData& data = NewOrExistGameObjectData(spawnId);
-    data.spawnId = spawnId;
-    data.id = entry;
-    data.mapId = mapId;
-    data.spawnPoint.Relocate(pos);
-    data.rotation       = rot;
-    data.spawntimesecs  = spawntimedelay;
-    data.animprogress   = 100;
-    data.spawnMask      = 1;
-    data.goState        = GO_STATE_READY;
-    data.artKit         = goinfo->type == GAMEOBJECT_TYPE_CAPTURE_POINT ? 21 : 0;
-    data.dbData         = false;
-    data.spawnGroupData = GetLegacySpawnGroup();
-
-    AddGameobjectToGrid(spawnId, &data);
-
-    // Spawn if necessary (loaded grids only)
-    // We use spawn coords to spawn
-    if (!map->Instanceable() && map->IsGridLoaded(data.spawnPoint))
-    {
-        GameObject* go = new GameObject;
-
-        if (!go->LoadFromDB(spawnId, map, true))
-        {
-            TC_LOG_ERROR("misc", "AddGameObjectData: cannot add gameobject entry %u to map", entry);
-            delete go;
-            return 0;
-        }
-    }
-
-    TC_LOG_DEBUG("maps", "AddGameObjectData: dbguid %u entry %u map %u pos %s", spawnId, entry, mapId, data.spawnPoint.ToString().c_str());
-
-    return spawnId;
-}
-
-ObjectGuid::LowType ObjectMgr::AddCreatureData(uint32 entry, uint32 mapId, Position const& pos, uint32 spawntimedelay /*= 0*/)
-{
-    CreatureTemplate const* cInfo = GetCreatureTemplate(entry);
-    if (!cInfo)
-        return 0;
-
-    uint32 level = cInfo->minlevel == cInfo->maxlevel ? cInfo->minlevel : urand(cInfo->minlevel, cInfo->maxlevel); // Only used for extracting creature base stats
-    CreatureBaseStats const* stats = GetCreatureBaseStats(level, cInfo->unit_class);
-    Map* map = sMapMgr->CreateBaseMap(mapId);
-    if (!map)
-        return 0;
-
-    ObjectGuid::LowType spawnId = GenerateCreatureSpawnId();
-    CreatureData& data = NewOrExistCreatureData(spawnId);
-    data.spawnId = spawnId;
-    data.id = entry;
-    data.mapId = mapId;
-    data.spawnPoint.Relocate(pos);
-    data.displayid = 0;
-    data.equipmentId = 0;
-    data.spawntimesecs = spawntimedelay;
-    data.wanderDistance = 0;
-    data.currentwaypoint = 0;
-    data.curhealth = stats->GenerateHealth(cInfo);
-    data.curmana = stats->GenerateMana(cInfo);
-    data.movementType = cInfo->MovementType;
-    data.spawnMask = 1;
-    data.dbData = false;
-    data.npcflag = cInfo->npcflag;
-    data.unit_flags = cInfo->unit_flags;
-    data.dynamicflags = cInfo->dynamicflags;
-    data.spawnGroupData = GetLegacySpawnGroup();
-
-    AddCreatureToGrid(spawnId, &data);
-
-    // We use spawn coords to spawn
-    if (!map->Instanceable() && !map->IsRemovalGrid(data.spawnPoint))
-    {
-        Creature* creature = new Creature();
-        if (!creature->LoadFromDB(spawnId, map, true, true))
-        {
-            TC_LOG_ERROR("misc", "AddCreature: Cannot add creature entry %u to map", entry);
-            delete creature;
-            return 0;
-        }
-    }
-
-    return spawnId;
 }
 
 void ObjectMgr::LoadGameObjects()
@@ -2459,10 +2405,10 @@ void ObjectMgr::LoadGameObjects()
             data.spawnGroupData = GetLegacySpawnGroup(); // force compatibility group for transport spawns
 
         int16 gameEvent     = fields[15].GetInt8();
-        uint32 PoolId       = fields[16].GetUInt32();
-        data.phaseUseFlags = fields[17].GetUInt8();
-        data.phaseId = fields[18].GetUInt32();
-        data.phaseGroup = fields[19].GetUInt32();
+        data.poolId         = fields[16].GetUInt32();
+        data.phaseUseFlags  = fields[17].GetUInt8();
+        data.phaseId        = fields[18].GetUInt32();
+        data.phaseGroup     = fields[19].GetUInt32();
 
         if (data.phaseUseFlags & ~PHASE_USE_FLAGS_ALL)
         {
@@ -2559,7 +2505,7 @@ void ObjectMgr::LoadGameObjects()
             WorldDatabase.Execute(stmt);
         }
 
-        if (gameEvent == 0 && PoolId == 0)                      // if not this is to be managed by GameEvent System or Pool system
+        if (gameEvent == 0)                      // if not this is to be managed by GameEvent System or Pool system
             AddGameobjectToGrid(guid, &data);
     }
     while (result->NextRow());
@@ -2673,7 +2619,10 @@ void ObjectMgr::LoadSpawnGroups()
         {
             SpawnGroupTemplateData& groupTemplate = it->second;
             if (groupTemplate.mapId == SPAWNGROUP_MAP_UNSET)
+            {
                 groupTemplate.mapId = data->mapId;
+                _spawnGroupsByMap[data->mapId].push_back(groupId);
+            }
             else if (groupTemplate.mapId != data->mapId && !(groupTemplate.flags & SPAWNGROUP_FLAG_SYSTEM))
             {
                 TC_LOG_ERROR("sql.sql", "Spawn group %u has map ID %u, but spawn (%u,%u) has map id %u - spawn NOT added to group!", groupId, groupTemplate.mapId, uint32(spawnType), spawnId, data->mapId);
@@ -4950,10 +4899,12 @@ void ObjectMgr::LoadQuestLocales()
         uint32 id               = fields[0].GetUInt32();
         std::string localeName  = fields[1].GetString();
 
-        QuestLocale& data = _questLocaleStore[id];
 
         LocaleConstant locale = GetLocaleByName(localeName);
+        if (locale == LOCALE_enUS)
+            continue;
 
+        QuestLocale& data = _questLocaleStore[id];
         AddLocaleString(fields[2].GetString(), locale, data.Title);
         AddLocaleString(fields[3].GetString(), locale, data.Details);
         AddLocaleString(fields[4].GetString(), locale, data.Objectives);
@@ -5599,15 +5550,13 @@ void ObjectMgr::LoadPageTextLocales()
 
         uint32 id                   = fields[0].GetUInt32();
         std::string localeName      = fields[1].GetString();
-        std::string text            = fields[2].GetString();
-
-        PageTextLocale& data = _pageTextLocaleStore[id];
         LocaleConstant locale = GetLocaleByName(localeName);
 
         if (locale == LOCALE_enUS)
             continue;
 
-        AddLocaleString(text, locale, data.Text);
+        PageTextLocale& data = _pageTextLocaleStore[id];
+        AddLocaleString(fields[2].GetString(), locale, data.Text);
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u PageText locale strings in %u ms", uint32(_pageTextLocaleStore.size()), GetMSTimeDiffToNow(oldMSTime));
@@ -5617,8 +5566,8 @@ void ObjectMgr::LoadInstanceTemplate()
 {
     uint32 oldMSTime = getMSTime();
 
-    //                                                0     1       2        4
-    QueryResult result = WorldDatabase.Query("SELECT map, parent, script, allowMount FROM instance_template");
+    //                                                0     1       2
+    QueryResult result = WorldDatabase.Query("SELECT map, parent, script FROM instance_template");
 
     if (!result)
     {
@@ -5633,15 +5582,13 @@ void ObjectMgr::LoadInstanceTemplate()
 
         uint16 mapID = fields[0].GetUInt16();
 
-        if (!MapManager::IsValidMAP(mapID, true))
+        if (!MapManager::IsValidMAP(mapID))
         {
             TC_LOG_ERROR("sql.sql", "ObjectMgr::LoadInstanceTemplate: bad mapid %d for template!", mapID);
             continue;
         }
 
         InstanceTemplate instanceTemplate;
-
-        instanceTemplate.AllowMount = fields[3].GetBool();
         instanceTemplate.Parent     = uint32(fields[1].GetUInt16());
         instanceTemplate.ScriptId   = sObjectMgr->GetScriptId(fields[2].GetString());
 
@@ -6193,14 +6140,13 @@ void ObjectMgr::LoadQuestGreetingsLocales()
         }
 
         std::string localeName      = fields[2].GetString();
-        std::string greeting        = fields[3].GetString();
 
-        QuestGreetingLocale& data   = _questGreetingLocaleStore[MAKE_PAIR32(id, type)];
-        LocaleConstant locale       = GetLocaleByName(localeName);
+        LocaleConstant locale = GetLocaleByName(localeName);
         if (locale == LOCALE_enUS)
             continue;
 
-        AddLocaleString(greeting, locale, data.greeting);
+        QuestGreetingLocale& data = _questGreetingLocaleStore[MAKE_PAIR32(id, type)];
+        AddLocaleString(fields[3].GetString(), locale, data.greeting);
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u quest greeting locale strings in %u ms", uint32(_questGreetingLocaleStore.size()), GetMSTimeDiffToNow(oldMSTime));
@@ -6851,33 +6797,28 @@ void ObjectMgr::LoadAccessRequirements()
 /*
  * Searches for the areatrigger which teleports players out of the given map with instance_template.parent field support
  */
-AreaTriggerStruct const* ObjectMgr::GetGoBackTrigger(uint32 Map) const
+AreaTriggerStruct const* ObjectMgr::GetGoBackTrigger(uint32 map) const
 {
-    bool useParentDbValue = false;
-    uint32 parentId = 0;
-    MapEntry const* mapEntry = sMapStore.LookupEntry(Map);
+    Optional<uint32> parentId;
+    MapEntry const* mapEntry = sMapStore.LookupEntry(map);
     if (!mapEntry || mapEntry->CorpseMapID < 0)
         return nullptr;
 
     if (mapEntry->IsDungeon())
-    {
-        InstanceTemplate const* iTemplate = sObjectMgr->GetInstanceTemplate(Map);
+        if (InstanceTemplate const* iTemplate = sObjectMgr->GetInstanceTemplate(map))
+            parentId = iTemplate->Parent;
 
-        if (!iTemplate)
-            return nullptr;
+    uint32 entrance_map = parentId.value_or(mapEntry->CorpseMapID);
 
-        parentId = iTemplate->Parent;
-        useParentDbValue = true;
-    }
-
-    uint32 entrance_map = uint32(mapEntry->CorpseMapID);
     for (AreaTriggerContainer::const_iterator itr = _areaTriggerStore.begin(); itr != _areaTriggerStore.end(); ++itr)
-        if ((!useParentDbValue && itr->second.target_mapId == entrance_map) || (useParentDbValue && itr->second.target_mapId == parentId))
+    {
+        if (itr->second.target_mapId == entrance_map)
         {
             AreaTriggerEntry const* atEntry = sAreaTriggerStore.LookupEntry(itr->first);
-            if (atEntry && atEntry->ContinentID == Map)
+            if (atEntry && atEntry->ContinentID == map)
                 return &itr->second;
         }
+    }
     return nullptr;
 }
 
@@ -7039,16 +6980,13 @@ void ObjectMgr::LoadGameObjectLocales()
         uint32 id                   = fields[0].GetUInt32();
         std::string localeName      = fields[1].GetString();
 
-        std::string name            = fields[2].GetString();
-        std::string castBarCaption  = fields[3].GetString();
-
-        GameObjectLocale& data = _gameObjectLocaleStore[id];
         LocaleConstant locale = GetLocaleByName(localeName);
         if (locale == LOCALE_enUS)
             continue;
 
-        AddLocaleString(name, locale, data.Name);
-        AddLocaleString(castBarCaption, locale, data.CastBarCaption);
+        GameObjectLocale& data = _gameObjectLocaleStore[id];
+        AddLocaleString(fields[2].GetString(), locale, data.Name);
+        AddLocaleString(fields[3].GetString(), locale, data.CastBarCaption);
 
     } while (result->NextRow());
 
@@ -7061,7 +6999,7 @@ inline void CheckGOLockId(GameObjectTemplate const* goInfo, uint32 dataN, uint32
         return;
 
     TC_LOG_ERROR("sql.sql", "Gameobject (Entry: %u GoType: %u) have data%d=%u but lock (Id: %u) not found.",
-        goInfo->entry, goInfo->type, N, goInfo->door.lockId, goInfo->door.lockId);
+        goInfo->entry, goInfo->type, N, goInfo->door.open, goInfo->door.open);
 }
 
 inline void CheckGOLinkedTrapId(GameObjectTemplate const* goInfo, uint32 dataN, uint32 N)
@@ -7171,97 +7109,97 @@ void ObjectMgr::LoadGameObjectTemplate()
         {
             case GAMEOBJECT_TYPE_DOOR:                      //0
             {
-                if (got.door.lockId)
-                    CheckGOLockId(&got, got.door.lockId, 1);
+                if (got.door.open)
+                    CheckGOLockId(&got, got.door.open, 1);
                 CheckGONoDamageImmuneId(&got, got.door.noDamageImmune, 3);
                 break;
             }
             case GAMEOBJECT_TYPE_BUTTON:                    //1
             {
-                if (got.button.lockId)
-                    CheckGOLockId(&got, got.button.lockId, 1);
+                if (got.button.open)
+                    CheckGOLockId(&got, got.button.open, 1);
                 CheckGONoDamageImmuneId(&got, got.button.noDamageImmune, 4);
                 break;
             }
             case GAMEOBJECT_TYPE_QUESTGIVER:                //2
             {
-                if (got.questgiver.lockId)
-                    CheckGOLockId(&got, got.questgiver.lockId, 0);
+                if (got.questgiver.open)
+                    CheckGOLockId(&got, got.questgiver.open, 0);
                 CheckGONoDamageImmuneId(&got, got.questgiver.noDamageImmune, 5);
                 break;
             }
             case GAMEOBJECT_TYPE_CHEST:                     //3
             {
-                if (got.chest.lockId)
-                    CheckGOLockId(&got, got.chest.lockId, 0);
+                if (got.chest.open)
+                    CheckGOLockId(&got, got.chest.open, 0);
 
                 CheckGOConsumable(&got, got.chest.consumable, 3);
 
-                if (got.chest.linkedTrapId)              // linked trap
-                    CheckGOLinkedTrapId(&got, got.chest.linkedTrapId, 7);
+                if (got.chest.linkedTrap)              // linked trap
+                    CheckGOLinkedTrapId(&got, got.chest.linkedTrap, 7);
                 break;
             }
             case GAMEOBJECT_TYPE_TRAP:                      //6
             {
-                if (got.trap.lockId)
-                    CheckGOLockId(&got, got.trap.lockId, 0);
+                if (got.trap.open)
+                    CheckGOLockId(&got, got.trap.open, 0);
                 break;
             }
             case GAMEOBJECT_TYPE_CHAIR:                     //7
-                CheckAndFixGOChairHeightId(&got, got.chair.height, 1);
+                CheckAndFixGOChairHeightId(&got, got.chair.chairheight, 1);
                 break;
             case GAMEOBJECT_TYPE_SPELL_FOCUS:               //8
             {
-                if (got.spellFocus.focusId)
+                if (got.spellFocus.spellFocusType)
                 {
-                    if (!sSpellFocusObjectStore.LookupEntry(got.spellFocus.focusId))
+                    if (!sSpellFocusObjectStore.LookupEntry(got.spellFocus.spellFocusType))
                         TC_LOG_ERROR("sql.sql", "GameObject (Entry: %u GoType: %u) have data0=%u but SpellFocus (Id: %u) not exist.",
-                        entry, got.type, got.spellFocus.focusId, got.spellFocus.focusId);
+                        entry, got.type, got.spellFocus.spellFocusType, got.spellFocus.spellFocusType);
                 }
 
-                if (got.spellFocus.linkedTrapId)        // linked trap
-                    CheckGOLinkedTrapId(&got, got.spellFocus.linkedTrapId, 2);
+                if (got.spellFocus.linkedTrap)        // linked trap
+                    CheckGOLinkedTrapId(&got, got.spellFocus.linkedTrap, 2);
                 break;
             }
             case GAMEOBJECT_TYPE_GOOBER:                    //10
             {
-                if (got.goober.lockId)
-                    CheckGOLockId(&got, got.goober.lockId, 0);
+                if (got.goober.open)
+                    CheckGOLockId(&got, got.goober.open, 0);
 
                 CheckGOConsumable(&got, got.goober.consumable, 3);
 
-                if (got.goober.pageId)                  // pageId
+                if (got.goober.pageID)                  // pageId
                 {
-                    if (!GetPageText(got.goober.pageId))
+                    if (!GetPageText(got.goober.pageID))
                         TC_LOG_ERROR("sql.sql", "GameObject (Entry: %u GoType: %u) have data7=%u but PageText (Entry %u) not exist.",
-                        entry, got.type, got.goober.pageId, got.goober.pageId);
+                        entry, got.type, got.goober.pageID, got.goober.pageID);
                 }
                 CheckGONoDamageImmuneId(&got, got.goober.noDamageImmune, 11);
-                if (got.goober.linkedTrapId)            // linked trap
-                    CheckGOLinkedTrapId(&got, got.goober.linkedTrapId, 12);
+                if (got.goober.linkedTrap)            // linked trap
+                    CheckGOLinkedTrapId(&got, got.goober.linkedTrap, 12);
                 break;
             }
             case GAMEOBJECT_TYPE_AREADAMAGE:                //12
             {
-                if (got.areadamage.lockId)
-                    CheckGOLockId(&got, got.areadamage.lockId, 0);
+                if (got.areadamage.open)
+                    CheckGOLockId(&got, got.areadamage.open, 0);
                 break;
             }
             case GAMEOBJECT_TYPE_CAMERA:                    //13
             {
-                if (got.camera.lockId)
-                    CheckGOLockId(&got, got.camera.lockId, 0);
+                if (got.camera.open)
+                    CheckGOLockId(&got, got.camera.open, 0);
                 break;
             }
             case GAMEOBJECT_TYPE_MO_TRANSPORT:              //15
             {
-                if (got.moTransport.taxiPathId)
+                if (got.moTransport.taxiPathID)
                 {
-                    if (got.moTransport.taxiPathId >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[got.moTransport.taxiPathId].empty())
+                    if (got.moTransport.taxiPathID >= sTaxiPathNodesByPath.size() || sTaxiPathNodesByPath[got.moTransport.taxiPathID].empty())
                         TC_LOG_ERROR("sql.sql", "GameObject (Entry: %u GoType: %u) have data0=%u but TaxiPath (Id: %u) not exist.",
-                            entry, got.type, got.moTransport.taxiPathId, got.moTransport.taxiPathId);
+                            entry, got.type, got.moTransport.taxiPathID, got.moTransport.taxiPathID);
                 }
-                if (uint32 transportMap = got.moTransport.mapID)
+                if (uint32 transportMap = got.moTransport.SpawnMap)
                     _transportMaps.insert(transportMap);
                 break;
             }
@@ -7270,26 +7208,26 @@ void ObjectMgr::LoadGameObjectTemplate()
             case GAMEOBJECT_TYPE_SPELLCASTER:               //22
             {
                 // always must have spell
-                CheckGOSpellId(&got, got.spellcaster.spellId, 0);
+                CheckGOSpellId(&got, got.spellcaster.spell, 0);
                 break;
             }
             case GAMEOBJECT_TYPE_FLAGSTAND:                 //24
             {
-                if (got.flagstand.lockId)
-                    CheckGOLockId(&got, got.flagstand.lockId, 0);
+                if (got.flagstand.open)
+                    CheckGOLockId(&got, got.flagstand.open, 0);
                 CheckGONoDamageImmuneId(&got, got.flagstand.noDamageImmune, 5);
                 break;
             }
             case GAMEOBJECT_TYPE_FISHINGHOLE:               //25
             {
-                if (got.fishinghole.lockId)
-                    CheckGOLockId(&got, got.fishinghole.lockId, 4);
+                if (got.fishinghole.open)
+                    CheckGOLockId(&got, got.fishinghole.open, 4);
                 break;
             }
             case GAMEOBJECT_TYPE_FLAGDROP:                  //26
             {
-                if (got.flagdrop.lockId)
-                    CheckGOLockId(&got, got.flagdrop.lockId, 0);
+                if (got.flagdrop.open)
+                    CheckGOLockId(&got, got.flagdrop.open, 0);
                 CheckGONoDamageImmuneId(&got, got.flagdrop.noDamageImmune, 3);
                 break;
             }
@@ -8347,7 +8285,7 @@ void ObjectMgr::LoadGameObjectForQuests()
                 uint32 loot_id = (itr->second.GetLootId());
 
                 // find quest loot for GO
-                if (itr->second.chest.questId || LootTemplates_Gameobject.HaveQuestLootFor(loot_id))
+                if (itr->second.chest.questID || LootTemplates_Gameobject.HaveQuestLootFor(loot_id))
                 {
                     _gameObjectForQuestStore.insert(itr->second.entry);
                     ++count;
@@ -8365,7 +8303,7 @@ void ObjectMgr::LoadGameObjectForQuests()
             }
             case GAMEOBJECT_TYPE_GOOBER:
             {
-                if (itr->second.goober.questId > 0)              //quests objects
+                if (itr->second.goober.questID > 0)              //quests objects
                 {
                     _gameObjectForQuestStore.insert(itr->second.entry);
                     ++count;
@@ -9500,8 +9438,10 @@ void ObjectMgr::LoadBroadcastTextLocales()
 
         uint32 id               = fields[0].GetUInt32();
         std::string localeName  = fields[1].GetString();
-        std::string Text    = fields[2].GetString();
-        std::string Text1  = fields[3].GetString();
+
+        LocaleConstant locale = GetLocaleByName(localeName);
+        if (locale == LOCALE_enUS)
+            continue;
 
         BroadcastTextContainer::iterator bct = _broadcastTextStore.find(id);
         if (bct == _broadcastTextStore.end())
@@ -9510,12 +9450,8 @@ void ObjectMgr::LoadBroadcastTextLocales()
             continue;
         }
 
-        LocaleConstant locale = GetLocaleByName(localeName);
-        if (locale == LOCALE_enUS)
-            continue;
-
-        AddLocaleString(Text, locale, bct->second.Text);
-        AddLocaleString(Text1, locale, bct->second.Text1);
+        AddLocaleString(fields[2].GetString(), locale, bct->second.Text);
+        AddLocaleString(fields[3].GetString(), locale, bct->second.Text1);
     } while (result->NextRow());
 
     TC_LOG_INFO("server.loading", ">> Loaded %u broadcast text locales in %u ms", uint32(_broadcastTextStore.size()), GetMSTimeDiffToNow(oldMSTime));

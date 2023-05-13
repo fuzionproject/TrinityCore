@@ -681,13 +681,13 @@ namespace Trinity
                 if (go->GetGOInfo()->type != GAMEOBJECT_TYPE_SPELL_FOCUS)
                     return false;
 
-                if (go->GetGOInfo()->spellFocus.focusId != _focusId)
+                if (go->GetGOInfo()->spellFocus.spellFocusType != _focusId)
                     return false;
 
                 if (!go->isSpawned())
                     return false;
 
-                float const dist = go->GetGOInfo()->spellFocus.dist / 2.f;
+                float const dist = go->GetGOInfo()->spellFocus.radius / 2.f;
                 return go->IsWithinDistInMap(_caster, dist);
             }
         private:
@@ -1569,6 +1569,21 @@ namespace Trinity
             bool _present;
             uint32 _spellId;
             ObjectGuid _casterGUID;
+    };
+
+    class ObjectEntryAndPrivateOwnerIfExistsCheck
+    {
+    public:
+        ObjectEntryAndPrivateOwnerIfExistsCheck(ObjectGuid ownerGUID, uint32 entry) : _ownerGUID(ownerGUID), _entry(entry) { }
+
+        bool operator()(WorldObject* object) const
+        {
+            return object->GetEntry() == _entry && (!object->IsPrivateObject() || object->GetPrivateObjectOwner() == _ownerGUID);
+        }
+
+    private:
+        ObjectGuid _ownerGUID;
+        uint32 _entry;
     };
 
     // Player checks and do

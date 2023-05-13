@@ -462,8 +462,11 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Uni
                 value *= ((((1.0 - _spellInfo->Scaling.NerfFactor) * (level - 1)) / (_spellInfo->Scaling.NerfMaxLevel - 1)) + _spellInfo->Scaling.NerfFactor);
         }
 
+        if (Scaling.ComboPointsCoefficient)
+            comboDamage = Scaling.ComboPointsCoefficient * value;
+
         value *= Scaling.Coefficient;
-        if (value != 0.0f && value < 1.0f)
+        if (value >= 0.0f && value < 1.0f)
             value = 1.0f;
 
         if (Scaling.Variance)
@@ -473,9 +476,6 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Uni
         }
 
         basePoints = int32(round(value));
-
-        if (Scaling.ComboPointsCoefficient)
-            comboDamage = Scaling.ComboPointsCoefficient * value;
     }
     else
     {
@@ -516,7 +516,7 @@ int32 SpellEffectInfo::CalcValue(WorldObject const* caster, int32 const* bp, Uni
     if (casterUnit)
     {
         // bonus amount from combo points
-        if (_spellInfo->HasAttribute(SPELL_ATTR1_FINISHING_MOVE_DAMAGE) && casterUnit->IsMovedByClient() && comboDamage)
+        if (_spellInfo->HasAttribute(SPELL_ATTR1_FINISHING_MOVE_DAMAGE) && casterUnit->IsMovedByClient() && comboDamage != 0.f)
             if (uint8 comboPoints = casterUnit->GetGameClientMovingMe()->GetBasePlayer()->GetComboPoints())
                 value += comboDamage * comboPoints;
 
@@ -3106,15 +3106,19 @@ void SpellInfo::ApplyAllSpellImmunitiesTo(Unit* target, uint8 effIndex, bool app
                 target->RemoveAurasWithMechanic(mechanicImmunity, AuraRemoveFlags::ByDefault, Id);
             else
             {
-                target->RemoveAppliedAuras([mechanicImmunity](AuraApplication const* aurApp)
+                std::vector<Aura*> aurasToUpdateTargets;
+                target->RemoveAppliedAuras([mechanicImmunity, &aurasToUpdateTargets](AuraApplication const* aurApp)
                 {
                     Aura* aura = aurApp->GetBase();
                     if (aura->GetSpellInfo()->GetAllEffectsMechanicMask() & mechanicImmunity)
-                        aura->UpdateTargetMap(aura->GetCaster());
+                        aurasToUpdateTargets.push_back(aura);
 
                     // only update targets, don't remove anything
                     return false;
                 });
+
+                for (Aura* aura : aurasToUpdateTargets)
+                    aura->UpdateTargetMap(aura->GetCaster());
             }
         }
     }

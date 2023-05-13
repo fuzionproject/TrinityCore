@@ -247,7 +247,7 @@ public:
             player->SaveRecallPosition();
 
         std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(mapId);
-        float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), x, y));
+        float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y));
 
         player->TeleportTo(mapId, x, y, z, player->GetOrientation());
         return true;
@@ -319,15 +319,12 @@ public:
         ASSERT(zoneEntry);
 
         std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(zoneEntry->ContinentID);
-        MapEntry const* mapEntry = sMapStore.LookupEntry(terrain->GetId());
-        if (!mapEntry || !mapEntry->Instanceable())
+        if (!sDBCManager.Zone2MapCoordinates(x, y, zoneEntry->ID))
         {
             handler->PSendSysMessage(LANG_INVALID_ZONE_MAP, areaEntry->ID, areaEntry->AreaName, terrain->GetId(), terrain->GetMapName());
             handler->SetSentErrorMessage(true);
             return false;
         }
-
-        sDBCManager.Zone2MapCoordinates(x, y, zoneEntry->ID);
 
         if (!MapManager::IsValidMapCoord(zoneEntry->ContinentID, x, y))
         {
@@ -346,7 +343,7 @@ public:
         else
             player->SaveRecallPosition();
 
-        float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), x, y));
+        float z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), zoneEntry->ContinentID, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), zoneEntry->ContinentID, x, y));
 
         player->TeleportTo(zoneEntry->ContinentID, x, y, z, player->GetOrientation());
         return true;
@@ -376,7 +373,7 @@ public:
                 return false;
             }
             std::shared_ptr<TerrainInfo> terrain = sTerrainMgr.LoadTerrain(mapId);
-            z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), x, y));
+            z = std::max(terrain->GetStaticHeight(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y, MAX_HEIGHT), terrain->GetWaterLevel(PhasingHandler::GetEmptyPhaseShift(), mapId, x, y));
         }
 
         return DoTeleport(handler, { x, y, *z, o.value_or(0.0f) }, mapId);

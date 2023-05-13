@@ -21,6 +21,7 @@
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Log.h"
+#include "Map.h"
 #include "Corpse.h"
 #include "DBCStores.h"
 #include "Player.h"
@@ -33,7 +34,6 @@
 #include "Transport.h"
 #include "Battleground.h"
 #include "InstanceSaveMgr.h"
-#include "ObjectMgr.h"
 #include "Vehicle.h"
 #include "GameTime.h"
 #include "GameClient.h"
@@ -69,14 +69,15 @@ void WorldSession::HandleMoveWorldportAck()
 
     // get the destination map entry, not the current one, this will fix homebind and reset greeting
     MapEntry const* mEntry = sMapStore.LookupEntry(loc.GetMapId());
-    InstanceTemplate const* mInstance = sObjectMgr->GetInstanceTemplate(loc.GetMapId());
 
     // reset instance validity, except if going to an instance inside an instance
-    if (GetPlayer()->m_InstanceValid == false && !mInstance)
+    if (GetPlayer()->m_InstanceValid == false && !mEntry->IsDungeon())
         GetPlayer()->m_InstanceValid = true;
 
     Map* oldMap = GetPlayer()->GetMap();
-    Map* newMap = sMapMgr->CreateMap(loc.GetMapId(), GetPlayer());
+    Map* newMap = GetPlayer()->GetTeleportDestInstanceId() ?
+        sMapMgr->FindMap(loc.GetMapId(), *GetPlayer()->GetTeleportDestInstanceId()) :
+        sMapMgr->CreateMap(loc.GetMapId(), GetPlayer());
 
     MovementInfo::TransportInfo transportInfo = GetPlayer()->m_movementInfo.transport;
     if (TransportBase* transport = GetPlayer()->GetTransport())
@@ -166,14 +167,15 @@ void WorldSession::HandleMoveWorldportAck()
     // resurrect character at enter into instance where his corpse exist after add to map
 
     if (mEntry->IsDungeon() && !GetPlayer()->IsAlive())
+    {
         if (GetPlayer()->GetCorpseLocation().GetMapId() == mEntry->ID)
         {
             GetPlayer()->ResurrectPlayer(0.5f, false);
             GetPlayer()->SpawnCorpseBones();
         }
+    }
 
-    bool allowMount = !mEntry->IsDungeon() || mEntry->IsBattlegroundOrArena();
-    if (mInstance)
+    if (mEntry->IsDungeon())
     {
         // check if this instance has a reset time and send it to player if so
         Difficulty diff = newMap->GetDifficulty();
@@ -192,14 +194,7 @@ void WorldSession::HandleMoveWorldportAck()
         // check if instance is valid
         if (!GetPlayer()->CheckInstanceValidity(false))
             GetPlayer()->m_InstanceValid = false;
-
-        // instance mounting is handled in InstanceTemplate
-        allowMount = mInstance->AllowMount;
     }
-
-    // mount allow check
-    if (!allowMount)
-        _player->RemoveAurasByType(SPELL_AURA_MOUNTED);
 
     // update zone immediately, otherwise leave channel will cause crash in mtmap
     uint32 newzone, newarea;

@@ -286,7 +286,7 @@ public:
         if (Transport* transport = dynamic_cast<Transport*>(object->GetTransport()))
         {
             handler->PSendSysMessage(LANG_TRANSPORT_POSITION,
-                transport->GetGOInfo()->moTransport.mapID, object->GetTransOffsetX(), object->GetTransOffsetY(), object->GetTransOffsetZ(), object->GetTransOffsetO(),
+                transport->GetGOInfo()->moTransport.SpawnMap, object->GetTransOffsetX(), object->GetTransOffsetY(), object->GetTransOffsetZ(), object->GetTransOffsetO(),
                 transport->GetEntry(), transport->GetName().c_str());
         }
         handler->PSendSysMessage(LANG_GRID_POSITION,
@@ -461,7 +461,7 @@ public:
             float x, y, z;
             target->GetContactPoint(_player, x, y, z);
 
-            _player->TeleportTo(target->GetMapId(), x, y, z, _player->GetAngle(target), TELE_TO_GM_MODE);
+            _player->TeleportTo(target->GetMapId(), x, y, z, _player->GetAngle(target), TELE_TO_GM_MODE, target->GetInstanceId());
             PhasingHandler::InheritPhaseShift(_player, target);
             _player->UpdateObjectVisibility();
         }
@@ -550,7 +550,7 @@ public:
                 if (!target->GetMap()->IsBattlegroundOrArena())
                     target->SetBattlegroundEntryPoint();
             }
-            else if (map->Instanceable())
+            else if (map->IsDungeon())
             {
                 Map* targetMap = target->GetMap();
                 Player* targetGroupLeader = nullptr;
@@ -592,7 +592,7 @@ public:
             // before GM
             float x, y, z;
             _player->GetPosition(x, y, z);
-            target->TeleportTo(_player->GetMapId(), x, y, z, target->GetOrientation());
+            target->TeleportTo(_player->GetMapId(), x, y, z, target->GetOrientation(), 0, map->GetInstanceId());
             PhasingHandler::InheritPhaseShift(target, handler->GetSession()->GetPlayer());
             target->UpdateObjectVisibility();
         }

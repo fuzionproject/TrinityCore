@@ -47,10 +47,10 @@ class Group;
 class InstanceMap;
 class InstanceSave;
 class InstanceScript;
-class MapInstanced;
 class Object;
 class PhaseShift;
 class Player;
+class SpawnedPoolData;
 class TempSummon;
 class TerrainInfo;
 class Transport;
@@ -165,7 +165,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
 {
     friend class MapReference;
     public:
-        Map(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode, Map* _parent = nullptr);
+        Map(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode);
         virtual ~Map();
 
         MapEntry const* GetEntry() const { return i_mapEntry; }
@@ -293,6 +293,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
             CANNOT_ENTER_UNSPECIFIED_REASON
         };
 
+        static EnterState PlayerCannotEnter(uint32 mapid, Player* player, bool loginCheck = false);
         virtual EnterState CannotEnter(Player* /*player*/) { return CAN_ENTER; }
         char const* GetMapName() const;
 
@@ -400,9 +401,6 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
 
             return nullptr;
         }
-
-        MapInstanced* ToMapInstanced() { if (Instanceable()) return reinterpret_cast<MapInstanced*>(this); return nullptr; }
-        MapInstanced const* ToMapInstanced() const { if (Instanceable()) return reinterpret_cast<MapInstanced const*>(this); return nullptr; }
 
         InstanceMap* ToInstanceMap() { if (IsDungeon()) return reinterpret_cast<InstanceMap*>(this); else return nullptr;  }
         InstanceMap const* ToInstanceMap() const { if (IsDungeon()) return reinterpret_cast<InstanceMap const*>(this); return nullptr; }
@@ -518,9 +516,9 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         bool _dynamicObjectsToMoveLock;
         std::vector<DynamicObject*> _dynamicObjectsToMove;
 
-        bool IsGridLoaded(const GridCoord &) const;
-        void EnsureGridCreated(const GridCoord &);
-        void EnsureGridCreated_i(const GridCoord &);
+        bool IsGridLoaded(GridCoord const&) const;
+        void EnsureGridCreated(GridCoord const&);
+        void EnsureGridCreated_i(GridCoord const&);
         bool EnsureGridLoaded(Cell const&);
         void EnsureGridLoadedForActiveObject(Cell const&, WorldObject* object);
 
@@ -541,8 +539,6 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         void SendObjectUpdates();
 
     protected:
-        std::mutex _mapLock;
-        std::mutex _gridLock;
 
         MapEntry const* i_mapEntry;
         uint8 i_spawnMode;
@@ -646,6 +642,9 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         // This will not affect any already-present creatures in the group
         void SetSpawnGroupInactive(uint32 groupId) { SetSpawnGroupActive(groupId, false); }
 
+        SpawnedPoolData& GetPoolData() { return *_poolData; }
+        SpawnedPoolData const& GetPoolData() const { return *_poolData; }
+
         typedef std::function<void(Map*)> FarSpellCallback;
         void AddFarSpellCallback(FarSpellCallback&& callback);
 
@@ -707,6 +706,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         }
 
         void SetSpawnGroupActive(uint32 groupId, bool state);
+        void UpdateSpawnGroupConditions();
         std::unordered_set<uint32> _toggledSpawnGroupIds;
 
         uint32 _respawnCheckTimer;
@@ -726,6 +726,7 @@ class TC_GAME_API Map : public GridRefManager<NGridType>
         }
 
         std::map<HighGuid, std::unique_ptr<ObjectGuidGeneratorBase>> _guidGenerators;
+        std::unique_ptr<SpawnedPoolData> _poolData;
         MapStoredObjectTypesContainer _objectsStore;
         CreatureBySpawnIdContainer _creatureBySpawnIdStore;
         GameObjectBySpawnIdContainer _gameObjectBySpawnIdStore;
@@ -762,7 +763,7 @@ enum InstanceResetMethod
 class TC_GAME_API InstanceMap : public Map
 {
     public:
-        InstanceMap(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode, Map* _parent, TeamId InstanceTeam);
+        InstanceMap(uint32 id, time_t, uint32 InstanceId, uint8 SpawnMode, TeamId InstanceTeam);
         ~InstanceMap();
         bool AddPlayerToMap(Player*) override;
         void RemovePlayerFromMap(Player*, bool) override;
@@ -784,8 +785,8 @@ class TC_GAME_API InstanceMap : public Map
         bool HasPermBoundPlayers() const;
         uint32 GetMaxPlayers() const;
         uint32 GetMaxResetDelay() const;
-        TeamId GetTeamIdInInstance() const { return i_script_team; }
-        Team GetTeamInInstance() const { return i_script_team == TEAM_ALLIANCE ? ALLIANCE : HORDE; }
+        TeamId GetTeamIdInInstance() const;
+        Team GetTeamInInstance() const { return GetTeamIdInInstance() == TEAM_ALLIANCE ? ALLIANCE : HORDE; }
 
         virtual void InitVisibilityDistance() override;
     private:
@@ -793,13 +794,12 @@ class TC_GAME_API InstanceMap : public Map
         bool m_unloadWhenEmpty;
         InstanceScript* i_data;
         uint32 i_script_id;
-        TeamId i_script_team;
 };
 
 class TC_GAME_API BattlegroundMap : public Map
 {
     public:
-        BattlegroundMap(uint32 id, time_t, uint32 InstanceId, Map* _parent, uint8 spawnMode);
+        BattlegroundMap(uint32 id, time_t, uint32 InstanceId, uint8 spawnMode);
         ~BattlegroundMap();
 
         bool AddPlayerToMap(Player*) override;

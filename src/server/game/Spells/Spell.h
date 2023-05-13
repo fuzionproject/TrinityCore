@@ -24,6 +24,7 @@
 #include "Optional.h"
 #include "Position.h"
 #include "SharedDefines.h"
+#include <any>
 #include <memory>
 
 namespace WorldPackets
@@ -532,6 +533,7 @@ class TC_GAME_API Spell
         int8 m_comboPointGain;
         SpellCustomErrors m_customError;
         uint32 m_castFlagsEx;
+        std::any m_customArg;
 
         UsedSpellMods m_appliedMods;
 

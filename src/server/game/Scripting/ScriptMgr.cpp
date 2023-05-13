@@ -27,6 +27,7 @@
 #include "Item.h"
 #include "LFGScripts.h"
 #include "Log.h"
+#include "Map.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
@@ -1051,6 +1052,9 @@ void ScriptMgr::Initialize()
     // LFGScripts
     lfg::AddSC_LFGScripts();
 
+    // MapScripts
+    sMapMgr->AddSC_BuiltInScripts();
+
     // Load all static linked scripts through the script loader function.
     ASSERT(_script_loader_callback,
            "Script loader callback wasn't registered!");
@@ -1573,10 +1577,10 @@ bool ScriptMgr::OnAreaTrigger(Player* player, AreaTriggerEntry const* trigger)
     return tmpscript->OnTrigger(player, trigger);
 }
 
-Battlefield* ScriptMgr::CreateBattlefield(uint32 scriptId)
+Battlefield* ScriptMgr::CreateBattlefield(uint32 scriptId, Map* map)
 {
     GET_SCRIPT_RET(BattlefieldScript, scriptId, tmpscript, nullptr);
-    return tmpscript->GetBattlefield();
+    return tmpscript->GetBattlefield(map);
 }
 
 Battleground* ScriptMgr::CreateBattleground(BattlegroundTypeId /*typeId*/)
@@ -1586,10 +1590,10 @@ Battleground* ScriptMgr::CreateBattleground(BattlegroundTypeId /*typeId*/)
     return nullptr;
 }
 
-OutdoorPvP* ScriptMgr::CreateOutdoorPvP(uint32 scriptId)
+OutdoorPvP* ScriptMgr::CreateOutdoorPvP(uint32 scriptId, Map* map)
 {
     GET_SCRIPT_RET(OutdoorPvPScript, scriptId, tmpscript, nullptr);
-    return tmpscript->GetOutdoorPvP();
+    return tmpscript->GetOutdoorPvP(map);
 }
 
 std::vector<ChatCommand> ScriptMgr::GetChatCommands()

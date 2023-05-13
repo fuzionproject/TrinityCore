@@ -15,21 +15,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ObjectMgr.h"
+#include "blackwing_descent.h"
 #include "ScriptMgr.h"
+#include "ObjectMgr.h"
 #include "CommonPredicates.h"
 #include "DBCStores.h"
 #include "GridNotifiers.h"
+#include "InstanceScript.h"
+#include "Map.h"
+#include "MotionMaster.h"
 #include "PassiveAI.h"
 #include "ScriptedCreature.h"
-#include "SpellScript.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
-#include "InstanceScript.h"
-#include "MotionMaster.h"
+#include "SpellScript.h"
 #include "TemporarySummon.h"
-#include "MapInstanced.h"
-#include "blackwing_descent.h"
 
 enum Spells
 {

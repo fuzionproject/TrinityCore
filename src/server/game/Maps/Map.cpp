@@ -16,6 +16,7 @@
  */
 
 #include "Map.h"
+#include "BattlefieldMgr.h"
 #include "Battleground.h"
 #include "CellImpl.h"
 #include "DatabaseEnv.h"
@@ -30,8 +31,8 @@
 #include "Group.h"
 #include "InstanceScript.h"
 #include "InstancePackets.h"
+#include "InstanceSaveMgr.h"
 #include "Log.h"
-#include "MapInstanced.h"
 #include "MapManager.h"
 #include "MMapFactory.h"
 #include "MiscPackets.h"
@@ -39,6 +40,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectGridLoader.h"
 #include "ObjectMgr.h"
+#include "OutdoorPvPMgr.h"
 #include "Pet.h"
 #include "PoolMgr.h"
 #include "PhasingHandler.h"
@@ -90,6 +92,9 @@ Map::~Map()
     if (!m_scriptSchedule.empty())
         sMapMgr->DecreaseScheduledScriptCount(m_scriptSchedule.size());
 
+    sOutdoorPvPMgr->DestroyOutdoorPvPForMap(this);
+    sBattlefieldMgr->DestroyBattlefieldsForMap(this);
+
     MMAP::MMapFactory::createOrGetMMapManager()->unloadMapInstance(GetId(), i_InstanceId);
 }
 
@@ -116,7 +121,7 @@ void Map::DeleteStateMachine()
     delete si_GridStates[GRID_STATE_REMOVAL];
 }
 
-Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode, Map* /*_parent*/) :
+Map::Map(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode) :
 _creatureToMoveLock(false), _gameObjectsToMoveLock(false), _dynamicObjectsToMoveLock(false),
 i_mapEntry(sMapStore.LookupEntry(id)), i_spawnMode(SpawnMode), i_InstanceId(InstanceId),
 m_unloadTimer(0), m_VisibleDistance(DEFAULT_VISIBILITY_DISTANCE),
@@ -141,11 +146,16 @@ i_scriptLock(false), _respawnCheckTimer(0)
 
     _weatherUpdateTimer.SetInterval(time_t(1 * IN_MILLISECONDS));
 
+    _poolData = sPoolMgr->InitPoolsForMap(this);
+
     sTransportMgr->CreateTransportsForMap(this);
 
     MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld->GetDataPath(), GetId(), i_InstanceId);
 
     _worldStateValues = sWorldStateMgr->GetInitialWorldStatesForMap(this);
+
+    sOutdoorPvPMgr->CreateOutdoorPvPForMap(this);
+    sBattlefieldMgr->CreateBattlefieldsForMap(this);
 
     sScriptMgr->OnCreateMap(this);
 }
@@ -326,15 +336,9 @@ void Map::DeleteFromWorld(Player* player)
     delete player;
 }
 
-void Map::EnsureGridCreated(const GridCoord &p)
-{
-    std::lock_guard<std::mutex> lock(_gridLock);
-    EnsureGridCreated_i(p);
-}
-
 //Create NGrid so the object can be added to it
 //But object data is not loaded here
-void Map::EnsureGridCreated_i(const GridCoord &p)
+void Map::EnsureGridCreated(GridCoord const& p)
 {
     if (!getNGrid(p.x_coord, p.y_coord))
     {
@@ -624,6 +628,7 @@ void Map::Update(uint32 t_diff)
     if (_respawnCheckTimer <= t_diff)
     {
         ProcessRespawns();
+        UpdateSpawnGroupConditions();
         _respawnCheckTimer = sWorld->getIntConfig(CONFIG_RESPAWN_MINCHECKINTERVALMS);
     }
     else
@@ -1499,69 +1504,69 @@ void Map::UnloadAll()
 void Map::GetFullTerrainStatusForPosition(PhaseShift const& phaseShift, float x, float y, float z, PositionFullTerrainStatus& data,
     map_liquidHeaderTypeFlags reqLiquidType, float collisionHeight)
 {
-    m_terrain->GetFullTerrainStatusForPosition(phaseShift, x, y, z, data, reqLiquidType, collisionHeight);
+    m_terrain->GetFullTerrainStatusForPosition(phaseShift, GetId(), x, y, z, data, reqLiquidType, collisionHeight);
 }
 
 ZLiquidStatus Map::GetLiquidStatus(PhaseShift const& phaseShift, float x, float y, float z, map_liquidHeaderTypeFlags ReqLiquidType, LiquidData* data,
     float collisionHeight)
 {
-    return m_terrain->GetLiquidStatus(phaseShift, x, y, z, ReqLiquidType, data, collisionHeight);
+    return m_terrain->GetLiquidStatus(phaseShift, GetId(), x, y, z, ReqLiquidType, data, collisionHeight);
 }
 
 uint32 Map::GetAreaId(PhaseShift const& phaseShift, float x, float y, float z)
 {
-    return m_terrain->GetAreaId(phaseShift, x, y, z);
+    return m_terrain->GetAreaId(phaseShift, GetId(), x, y, z);
 }
 
 uint32 Map::GetZoneId(PhaseShift const& phaseShift, float x, float y, float z)
 {
-    return m_terrain->GetZoneId(phaseShift, x, y, z);
+    return m_terrain->GetZoneId(phaseShift, GetId(), x, y, z);
 }
 
 void Map::GetZoneAndAreaId(PhaseShift const& phaseShift, uint32& zoneid, uint32& areaid, float x, float y, float z)
 {
-    return m_terrain->GetZoneAndAreaId(phaseShift, zoneid, areaid, x, y, z);
+    return m_terrain->GetZoneAndAreaId(phaseShift, GetId(), zoneid, areaid, x, y, z);
 }
 
 float Map::GetMinHeight(PhaseShift const& phaseShift, float x, float y)
 {
-    return m_terrain->GetMinHeight(phaseShift, x, y);
+    return m_terrain->GetMinHeight(phaseShift, GetId(), x, y);
 }
 
 float Map::GetGridHeight(PhaseShift const& phaseShift, float x, float y)
 {
-    return m_terrain->GetGridHeight(phaseShift, x, y);
+    return m_terrain->GetGridHeight(phaseShift, GetId(), x, y);
 }
 
 float Map::GetStaticHeight(PhaseShift const& phaseShift, float x, float y, float z, bool checkVMap, float maxSearchDist)
 {
-    return m_terrain->GetStaticHeight(phaseShift, x, y, z, checkVMap, maxSearchDist);
+    return m_terrain->GetStaticHeight(phaseShift, GetId(), x, y, z, checkVMap, maxSearchDist);
 }
 
 float Map::GetWaterLevel(PhaseShift const& phaseShift, float x, float y)
 {
-    return m_terrain->GetWaterLevel(phaseShift, x, y);
+    return m_terrain->GetWaterLevel(phaseShift, GetId(), x, y);
 }
 
 bool Map::IsInWater(PhaseShift const& phaseShift, float x, float y, float z, LiquidData* data)
 {
-    return m_terrain->IsInWater(phaseShift, x, y, z, data);
+    return m_terrain->IsInWater(phaseShift, GetId(), x, y, z, data);
 }
 
 bool Map::IsUnderWater(PhaseShift const& phaseShift, float x, float y, float z)
 {
-    return m_terrain->IsUnderWater(phaseShift, x, y, z);
+    return m_terrain->IsUnderWater(phaseShift, GetId(), x, y, z);
 }
 
 float Map::GetWaterOrGroundLevel(PhaseShift const& phaseShift, float x, float y, float z, float* ground, bool swim, float collisionHeight)
 {
-    return m_terrain->GetWaterOrGroundLevel(phaseShift, x, y, z, ground, swim, collisionHeight, &_dynamicTree);
+    return m_terrain->GetWaterOrGroundLevel(phaseShift, GetId(), x, y, z, ground, swim, collisionHeight, &_dynamicTree);
 }
 
 bool Map::isInLineOfSight(PhaseShift const& phaseShift, float x1, float y1, float z1, float x2, float y2, float z2, LineOfSightChecks checks, VMAP::ModelIgnoreFlags ignoreFlags) const
 {
     if ((checks & LINEOFSIGHT_CHECK_VMAP)
-      && !VMAP::VMapFactory::createOrGetVMapManager()->isInLineOfSight(PhasingHandler::GetTerrainMapId(phaseShift, m_terrain.get(), x1, y1), x1, y1, z1, x2, y2, z2, ignoreFlags))
+      && !VMAP::VMapFactory::createOrGetVMapManager()->isInLineOfSight(PhasingHandler::GetTerrainMapId(phaseShift, GetId(), m_terrain.get(), x1, y1), x1, y1, z1, x2, y2, z2, ignoreFlags))
         return false;
     if (sWorld->getBoolConfig(CONFIG_CHECK_GOBJECT_LOS) && (checks & LINEOFSIGHT_CHECK_GOBJECT)
       && !_dynamicTree.isInLineOfSight({x1, y1, z1}, {x2, y2, z2}, phaseShift))
@@ -1582,6 +1587,87 @@ bool Map::getObjectHitPos(PhaseShift const& phaseShift, float x1, float y1, floa
     rz = resultPos.z;
     return result;
 }
+
+Map::EnterState Map::PlayerCannotEnter(uint32 mapid, Player* player, bool loginCheck)
+{
+    MapEntry const* entry = sMapStore.LookupEntry(mapid);
+    if (!entry)
+        return CANNOT_ENTER_NO_ENTRY;
+
+    if (!entry->IsDungeon())
+        return CAN_ENTER;
+
+    Difficulty targetDifficulty, requestedDifficulty;
+    targetDifficulty = requestedDifficulty = player->GetDifficulty(entry->IsRaid());
+    // Get the highest available difficulty if current setting is higher than the instance allows
+    MapDifficulty const* mapDiff = sDBCManager.GetDownscaledMapDifficultyData(mapid, targetDifficulty);
+    if (!mapDiff)
+        return CANNOT_ENTER_DIFFICULTY_UNAVAILABLE;
+
+    //Bypass checks for GMs
+    if (player->IsGameMaster())
+        return CAN_ENTER;
+
+    //Other requirements
+    if (!player->Satisfy(sObjectMgr->GetAccessRequirement(mapid, targetDifficulty), mapid, true))
+        return CANNOT_ENTER_UNSPECIFIED_REASON;
+
+    char const* mapName = entry->MapName;
+
+    Group* group = player->GetGroup();
+    if (entry->IsRaid() && entry->Expansion() >= sWorld->getIntConfig(CONFIG_EXPANSION)) // can only enter in a raid group but raids from old expansion don't need a group
+        if ((!group || !group->isRaidGroup()) && !sWorld->getBoolConfig(CONFIG_INSTANCE_IGNORE_RAID))
+            return CANNOT_ENTER_NOT_IN_RAID;
+
+    if (!player->IsAlive())
+    {
+        if (player->HasCorpse())
+        {
+            // let enter in ghost mode in instance that connected to inner instance with corpse
+            uint32 corpseMap = player->GetCorpseLocation().GetMapId();
+            do
+            {
+                if (corpseMap == mapid)
+                    break;
+
+                InstanceTemplate const* corpseInstance = sObjectMgr->GetInstanceTemplate(corpseMap);
+                corpseMap = corpseInstance ? corpseInstance->Parent : 0;
+            } while (corpseMap);
+
+            if (!corpseMap)
+                return CANNOT_ENTER_CORPSE_IN_DIFFERENT_INSTANCE;
+
+            TC_LOG_DEBUG("maps", "MAP: Player '%s' has corpse in instance '%s' and can enter.", player->GetName().c_str(), mapName);
+        }
+        else
+            TC_LOG_DEBUG("maps", "Map::CanPlayerEnter - player '%s' is dead but does not have a corpse!", player->GetName().c_str());
+    }
+
+    //Get instance where player's group is bound & its map
+    if (!loginCheck && group)
+    {
+        InstanceGroupBind* boundInstance = group->GetBoundInstance(entry);
+        if (boundInstance && boundInstance->save)
+            if (Map* boundMap = sMapMgr->FindMap(mapid, boundInstance->save->GetInstanceId()))
+                if (EnterState denyReason = boundMap->CannotEnter(player))
+                    return denyReason;
+    }
+
+    // players are only allowed to enter 5 instances per hour
+    if (entry->IsDungeon() && (!player->GetGroup() || (player->GetGroup() && !player->GetGroup()->isLFGGroup())))
+    {
+        uint32 instanceIdToCheck = 0;
+        if (InstanceSave* save = player->GetInstanceSave(mapid, entry->IsRaid()))
+            instanceIdToCheck = save->GetInstanceId();
+
+        // instanceId can never be 0 - will not be found
+        if (!player->CheckInstanceCount(instanceIdToCheck) && !player->isDead())
+            return CANNOT_ENTER_TOO_MANY_INSTANCES;
+    }
+
+    return CAN_ENTER;
+}
+
 
 char const* Map::GetMapName() const
 {
@@ -1959,7 +2045,7 @@ void Map::ProcessRespawns()
             GetRespawnMapForType(next->type).erase(next->spawnId);
 
             // step 2: tell pooling logic to do its thing
-            sPoolMgr->UpdatePool(poolId, next->type, next->spawnId);
+            sPoolMgr->UpdatePool(GetPoolData(), poolId, next->type, next->spawnId);
 
             // step 3: get rid of the actual entry
             RemoveRespawnTime(next->type, next->spawnId, nullptr, true);
@@ -2051,6 +2137,10 @@ bool Map::ShouldBeSpawnedOnGridLoad(SpawnObjectType type, ObjectGuid::LowType sp
     SpawnGroupTemplateData const* spawnGroup = ASSERT_NOTNULL(spawnData->spawnGroupData);
     if (!(spawnGroup->flags & SPAWNGROUP_FLAG_SYSTEM))
         if (!IsSpawnGroupActive(spawnGroup->groupId))
+            return false;
+
+    if (spawnData->ToSpawnData()->poolId)
+        if (!GetPoolData().IsSpawnedObject(type, spawnId))
             return false;
 
     return true;
@@ -2189,6 +2279,32 @@ bool Map::IsSpawnGroupActive(uint32 groupId) const
         return true;
     // either manual spawn group and toggled, or not manual spawn group and not toggled...
     return (_toggledSpawnGroupIds.find(groupId) != _toggledSpawnGroupIds.end()) != !(data->flags & SPAWNGROUP_FLAG_MANUAL_SPAWN);
+}
+
+void Map::UpdateSpawnGroupConditions()
+{
+    std::vector<uint32> const* spawnGroups = sObjectMgr->GetSpawnGroupsForMap(GetId());
+    if (!spawnGroups)
+        return;
+
+    for (uint32 spawnGroupId : *spawnGroups)
+    {
+        SpawnGroupTemplateData const* spawnGroupTemplate = ASSERT_NOTNULL(GetSpawnGroupData(spawnGroupId));
+        if (spawnGroupTemplate->flags & SPAWNGROUP_FLAG_MANUAL_SPAWN)
+            continue;
+
+        bool isActive = IsSpawnGroupActive(spawnGroupId);
+        bool shouldBeActive = sConditionMgr->IsMapMeetingNotGroupedConditions(CONDITION_SOURCE_TYPE_SPAWN_GROUP, spawnGroupId, this);
+        if (isActive == shouldBeActive)
+            continue;
+
+        if (shouldBeActive)
+            SpawnGroupSpawn(spawnGroupId);
+        else if (spawnGroupTemplate->flags & SPAWNGROUP_FLAG_DESPAWN_ON_CONDITION_FAILURE)
+            SpawnGroupDespawn(spawnGroupId, true);
+        else
+            SetSpawnGroupInactive(spawnGroupId);
+    }
 }
 
 void Map::AddFarSpellCallback(FarSpellCallback&& callback)
@@ -2470,10 +2586,10 @@ template TC_GAME_API void Map::RemoveFromMap(AreaTrigger*, bool);
 
 /* ******* Dungeon Instance Maps ******* */
 
-InstanceMap::InstanceMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode, Map* _parent, TeamId InstanceTeam)
-  : Map(id, expiry, InstanceId, SpawnMode, _parent),
+InstanceMap::InstanceMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 SpawnMode, TeamId InstanceTeam)
+  : Map(id, expiry, InstanceId, SpawnMode),
     m_resetAfterUnload(false), m_unloadWhenEmpty(false),
-    i_data(nullptr), i_script_id(0), i_script_team(InstanceTeam)
+    i_data(nullptr), i_script_id(0)
 {
     //lets initialize visibility distance for dungeons
     InstanceMap::InitVisibilityDistance();
@@ -2481,6 +2597,9 @@ InstanceMap::InstanceMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 Spaw
     // the timer is started by default, and stopped when the first player joins
     // this make sure it gets unloaded if for some reason no player joins
     m_unloadTimer = std::max(sWorld->getIntConfig(CONFIG_INSTANCE_UNLOAD_DELAY), (uint32)MIN_UNLOAD_DELAY);
+
+    sWorldStateMgr->SetValue(WS_TEAM_IN_INSTANCE_ALLIANCE, InstanceTeam == TEAM_ALLIANCE, false, this);
+    sWorldStateMgr->SetValue(WS_TEAM_IN_INSTANCE_HORDE, InstanceTeam == TEAM_HORDE, false, this);
 }
 
 InstanceMap::~InstanceMap()
@@ -2538,112 +2657,97 @@ Map::EnterState InstanceMap::CannotEnter(Player* player)
 */
 bool InstanceMap::AddPlayerToMap(Player* player)
 {
-    /// @todo Not sure about checking player level: already done in HandleAreaTriggerOpcode
-    // GMs still can teleport player in instance.
-    // Is it needed?
+    Group* group = player->GetGroup();
 
+    // increase current instances (hourly limit)
+    if (!group || !group->isLFGGroup())
+        player->AddInstanceEnterTime(GetInstanceId(), GameTime::GetGameTime());
+
+    // get or create an instance save for the map
+    InstanceSave* mapSave = sInstanceSaveMgr->GetInstanceSave(GetInstanceId());
+    if (!mapSave)
     {
-        std::lock_guard<std::mutex> lock(_mapLock);
-        // Check moved to void WorldSession::HandleMoveWorldportAckOpcode()
-        //if (!CanEnter(player))
-            //return false;
+        TC_LOG_DEBUG("maps", "InstanceMap::Add: creating instance save for map %d spawnmode %d with instance id %d", GetId(), GetDifficulty(), GetInstanceId());
+        mapSave = sInstanceSaveMgr->AddInstanceSave(GetId(), GetInstanceId(), GetDifficulty(), 0, true);
+    }
 
-        // Dungeon only code
-        if (IsDungeon())
+    ASSERT(mapSave);
+
+    // check for existing instance binds
+    InstancePlayerBind* playerBind = player->GetBoundInstance(GetId(), GetDifficulty());
+    if (playerBind && playerBind->perm)
+    {
+        // cannot enter other instances if bound permanently
+        if (playerBind->save != mapSave)
         {
-            Group* group = player->GetGroup();
-
-            // increase current instances (hourly limit)
-            if (!group || !group->isLFGGroup())
-                player->AddInstanceEnterTime(GetInstanceId(), GameTime::GetGameTime());
-
-            // get or create an instance save for the map
-            InstanceSave* mapSave = sInstanceSaveMgr->GetInstanceSave(GetInstanceId());
-            if (!mapSave)
+            TC_LOG_ERROR("maps", "InstanceMap::Add: player %s %s is permanently bound to instance %s %d, %d, %d, %d, %d, %d but he is being put into instance %s %d, %d, %d, %d, %d, %d", player->GetName().c_str(), player->GetGUID().ToString().c_str(), GetMapName(), playerBind->save->GetMapId(), playerBind->save->GetInstanceId(), static_cast<uint32>(playerBind->save->GetDifficulty()), playerBind->save->GetPlayerCount(), playerBind->save->GetGroupCount(), playerBind->save->CanReset(), GetMapName(), mapSave->GetMapId(), mapSave->GetInstanceId(), static_cast<uint32>(mapSave->GetDifficulty()), mapSave->GetPlayerCount(), mapSave->GetGroupCount(), mapSave->CanReset());
+            return false;
+        }
+    }
+    else
+    {
+        if (group)
+        {
+            // solo saves should have been reset when the map was loaded
+            InstanceGroupBind* groupBind = group->GetBoundInstance(this);
+            if (playerBind && playerBind->save != mapSave)
             {
-                TC_LOG_DEBUG("maps", "InstanceMap::Add: creating instance save for map %d spawnmode %d with instance id %d", GetId(), GetSpawnMode(), GetInstanceId());
-                mapSave = sInstanceSaveMgr->AddInstanceSave(GetId(), GetInstanceId(), Difficulty(GetSpawnMode()), 0, true);
+                TC_LOG_ERROR("maps", "InstanceMap::Add: player %s %s is being put into instance %s %d, %d, %d, %d, %d, %d but he is in group %s and is bound to instance %d, %d, %d, %d, %d, %d!", player->GetName().c_str(), player->GetGUID().ToString().c_str(), GetMapName(), mapSave->GetMapId(), mapSave->GetInstanceId(), static_cast<uint32>(mapSave->GetDifficulty()), mapSave->GetPlayerCount(), mapSave->GetGroupCount(), mapSave->CanReset(), group->GetLeaderGUID().ToString().c_str(), playerBind->save->GetMapId(), playerBind->save->GetInstanceId(), static_cast<uint32>(playerBind->save->GetDifficulty()), playerBind->save->GetPlayerCount(), playerBind->save->GetGroupCount(), playerBind->save->CanReset());
+                if (groupBind)
+                    TC_LOG_ERROR("maps", "InstanceMap::Add: the group is bound to the instance %s %d, %d, %d, %d, %d, %d", GetMapName(), groupBind->save->GetMapId(), groupBind->save->GetInstanceId(), static_cast<uint32>(groupBind->save->GetDifficulty()), groupBind->save->GetPlayerCount(), groupBind->save->GetGroupCount(), groupBind->save->CanReset());
+                //ABORT();
+                return false;
             }
-
-            ASSERT(mapSave);
-
-            // check for existing instance binds
-            InstancePlayerBind* playerBind = player->GetBoundInstance(GetId(), Difficulty(GetSpawnMode()));
-            if (playerBind && playerBind->perm)
-            {
-                // cannot enter other instances if bound permanently
-                if (playerBind->save != mapSave)
-                {
-                    TC_LOG_ERROR("maps", "InstanceMap::Add: player %s(%d) is permanently bound to instance %s %d, %d, %d, %d, %d, %d but he is being put into instance %s %d, %d, %d, %d, %d, %d", player->GetName().c_str(), player->GetGUID().GetCounter(), GetMapName(), playerBind->save->GetMapId(), playerBind->save->GetInstanceId(), playerBind->save->GetDifficulty(), playerBind->save->GetPlayerCount(), playerBind->save->GetGroupCount(), playerBind->save->CanReset(), GetMapName(), mapSave->GetMapId(), mapSave->GetInstanceId(), mapSave->GetDifficulty(), mapSave->GetPlayerCount(), mapSave->GetGroupCount(), mapSave->CanReset());
-                    return false;
-                }
-            }
+            // bind to the group or keep using the group save
+            if (!groupBind)
+                group->BindToInstance(mapSave, false);
             else
             {
-                if (group)
+                // cannot jump to a different instance without resetting it
+                if (groupBind->save != mapSave)
                 {
-                    // solo saves should have been reset when the map was loaded
-                    InstanceGroupBind* groupBind = group->GetBoundInstance(this);
-                    if (playerBind && playerBind->save != mapSave)
-                    {
-                        TC_LOG_ERROR("maps", "InstanceMap::Add: player %s(%d) is being put into instance %s %d, %d, %d, %d, %d, %d but he is in group %s and is bound to instance %d, %d, %d, %d, %d, %d!", player->GetName().c_str(), player->GetGUID().GetCounter(), GetMapName(), mapSave->GetMapId(), mapSave->GetInstanceId(), mapSave->GetDifficulty(), mapSave->GetPlayerCount(), mapSave->GetGroupCount(), mapSave->CanReset(), group->GetLeaderGUID().ToString().c_str(), playerBind->save->GetMapId(), playerBind->save->GetInstanceId(), playerBind->save->GetDifficulty(), playerBind->save->GetPlayerCount(), playerBind->save->GetGroupCount(), playerBind->save->CanReset());
-                        if (groupBind)
-                            TC_LOG_ERROR("maps", "InstanceMap::Add: the group is bound to the instance %s %d, %d, %d, %d, %d, %d", GetMapName(), groupBind->save->GetMapId(), groupBind->save->GetInstanceId(), groupBind->save->GetDifficulty(), groupBind->save->GetPlayerCount(), groupBind->save->GetGroupCount(), groupBind->save->CanReset());
-                        //ABORT();
-                        return false;
-                    }
-                    // bind to the group or keep using the group save
-                    if (!groupBind)
-                        group->BindToInstance(mapSave, false);
+                    TC_LOG_ERROR("maps", "InstanceMap::Add: player %s %s is being put into instance %d, %d, %d but he is in group %s which is bound to instance %d, %d, %d!", player->GetName().c_str(), player->GetGUID().ToString().c_str(), mapSave->GetMapId(), mapSave->GetInstanceId(), static_cast<uint32>(mapSave->GetDifficulty()), group->GetLeaderGUID().ToString().c_str(), groupBind->save->GetMapId(), groupBind->save->GetInstanceId(), static_cast<uint32>(groupBind->save->GetDifficulty()));
+                    TC_LOG_ERROR("maps", "MapSave players: %d, group count: %d", mapSave->GetPlayerCount(), mapSave->GetGroupCount());
+                    if (groupBind->save)
+                        TC_LOG_ERROR("maps", "GroupBind save players: %d, group count: %d", groupBind->save->GetPlayerCount(), groupBind->save->GetGroupCount());
                     else
-                    {
-                        // cannot jump to a different instance without resetting it
-                        if (groupBind->save != mapSave)
-                        {
-                            TC_LOG_ERROR("maps", "InstanceMap::Add: player %s(%d) is being put into instance %d, %d, %d but he is in group %s which is bound to instance %d, %d, %d!", player->GetName().c_str(), player->GetGUID().GetCounter(), mapSave->GetMapId(), mapSave->GetInstanceId(), mapSave->GetDifficulty(), group->GetLeaderGUID().ToString().c_str(), groupBind->save->GetMapId(), groupBind->save->GetInstanceId(), groupBind->save->GetDifficulty());
-                            TC_LOG_ERROR("maps", "MapSave players: %d, group count: %d", mapSave->GetPlayerCount(), mapSave->GetGroupCount());
-                            if (groupBind->save)
-                                TC_LOG_ERROR("maps", "GroupBind save players: %d, group count: %d", groupBind->save->GetPlayerCount(), groupBind->save->GetGroupCount());
-                            else
-                                TC_LOG_ERROR("maps", "GroupBind save nullptr");
-                            return false;
-                        }
-                        // if the group/leader is permanently bound to the instance
-                        // players also become permanently bound when they enter
-                        if (groupBind->perm)
-                        {
-                            WorldPackets::Instance::PendingRaidLock pendingRaidLock;
-                            pendingRaidLock.TimeUntilLock = 60000;
-                            pendingRaidLock.CompletedMask = i_data ? i_data->GetCompletedEncounterMask() : 0;
-                            pendingRaidLock.Extending = false;
-                            pendingRaidLock.WarningOnly = false; // events it throws:  1 : INSTANCE_LOCK_WARNING   0 : INSTANCE_LOCK_STOP / INSTANCE_LOCK_START
-                            player->SendDirectMessage(pendingRaidLock.Write());
-                            player->SetPendingBind(mapSave->GetInstanceId(), 60000);
-                        }
-                    }
+                        TC_LOG_ERROR("maps", "GroupBind save NULL");
+                    return false;
                 }
-                else
+                // if the group/leader is permanently bound to the instance
+                // players also become permanently bound when they enter
+                if (groupBind->perm)
                 {
-                    // set up a solo bind or continue using it
-                    if (!playerBind)
-                        player->BindToInstance(mapSave, false);
-                    else
-                        // cannot jump to a different instance without resetting it
-                        ASSERT(playerBind->save == mapSave);
+                    WorldPackets::Instance::PendingRaidLock pendingRaidLock;
+                    pendingRaidLock.TimeUntilLock = 60000;
+                    pendingRaidLock.CompletedMask = i_data ? i_data->GetCompletedEncounterMask() : 0;
+                    pendingRaidLock.Extending = false;
+                    pendingRaidLock.WarningOnly = false; // events it throws:  1 : INSTANCE_LOCK_WARNING   0 : INSTANCE_LOCK_STOP / INSTANCE_LOCK_START
+                    player->SendDirectMessage(pendingRaidLock.Write());
+                    player->SetPendingBind(mapSave->GetInstanceId(), 60000);
                 }
             }
         }
-
-        // for normal instances cancel the reset schedule when the
-        // first player enters (no players yet)
-        SetResetSchedule(false);
-
-        TC_LOG_DEBUG("maps", "MAP: Player '%s' entered instance '%u' of map '%s'", player->GetName().c_str(), GetInstanceId(), GetMapName());
-        // initialize unload state
-        m_unloadTimer = 0;
-        m_resetAfterUnload = false;
-        m_unloadWhenEmpty = false;
+        else
+        {
+            // set up a solo bind or continue using it
+            if (!playerBind)
+                player->BindToInstance(mapSave, false);
+            else
+                // cannot jump to a different instance without resetting it
+                ASSERT(playerBind->save == mapSave);
+        }
     }
+
+    // for normal instances cancel the reset schedule when the
+    // first player enters (no players yet)
+    SetResetSchedule(false);
+
+    TC_LOG_DEBUG("maps", "MAP: Player '%s' entered instance '%u' of map '%s'", player->GetName().c_str(), GetInstanceId(), GetMapName());
+    // initialize unload state
+    m_unloadTimer = 0;
+    m_resetAfterUnload = false;
+    m_unloadWhenEmpty = false;
 
     // this will acquire the same mutex so it cannot be in the previous block
     Map::AddPlayerToMap(player);
@@ -2951,10 +3055,19 @@ uint32 InstanceMap::GetMaxResetDelay() const
     return mapDiff ? mapDiff->resetTime : 0;
 }
 
+TeamId InstanceMap::GetTeamIdInInstance() const
+{
+    if (sWorldStateMgr->GetValue(WS_TEAM_IN_INSTANCE_ALLIANCE, this))
+        return TEAM_ALLIANCE;
+    if (sWorldStateMgr->GetValue(WS_TEAM_IN_INSTANCE_HORDE, this))
+        return TEAM_HORDE;
+    return TEAM_NEUTRAL;
+}
+
 /* ******* Battleground Instance Maps ******* */
 
-BattlegroundMap::BattlegroundMap(uint32 id, time_t expiry, uint32 InstanceId, Map* _parent, uint8 spawnMode)
-  : Map(id, expiry, InstanceId, spawnMode, _parent), m_bg(nullptr)
+BattlegroundMap::BattlegroundMap(uint32 id, time_t expiry, uint32 InstanceId, uint8 spawnMode)
+  : Map(id, expiry, InstanceId, spawnMode), m_bg(nullptr)
 {
     //lets initialize visibility distance for BG/Arenas
     BattlegroundMap::InitVisibilityDistance();
@@ -2996,14 +3109,7 @@ Map::EnterState BattlegroundMap::CannotEnter(Player* player)
 
 bool BattlegroundMap::AddPlayerToMap(Player* player)
 {
-    {
-        std::lock_guard<std::mutex> lock(_mapLock);
-        //Check moved to void WorldSession::HandleMoveWorldportAckOpcode()
-        //if (!CanEnter(player))
-            //return false;
-        // reset instance validity, battleground maps do not homebind
-        player->m_InstanceValid = true;
-    }
+    player->m_InstanceValid = true;
     return Map::AddPlayerToMap(player);
 }
 

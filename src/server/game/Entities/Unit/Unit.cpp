@@ -3870,7 +3870,8 @@ void Unit::RemoveMovementImpairingAuras(bool withRoot)
 
 void Unit::RemoveAurasWithMechanic(uint32 mechanicMaskToRemove, AuraRemoveFlags removeMode, uint32 exceptSpellId, bool withEffectMechanics)
 {
-    RemoveAppliedAuras([=](AuraApplication const* aurApp)
+    std::vector<Aura*> aurasToUpdateTargets;
+    RemoveAppliedAuras([=, &aurasToUpdateTargets](AuraApplication const* aurApp)
     {
         Aura* aura = aurApp->GetBase();
         if (exceptSpellId && aura->GetId() == exceptSpellId)
@@ -3885,9 +3886,18 @@ void Unit::RemoveAurasWithMechanic(uint32 mechanicMaskToRemove, AuraRemoveFlags 
             return true;
 
         // effect mechanic matches required mask for removal - don't remove, only update targets
-        aura->UpdateTargetMap(aura->GetCaster());
+        aurasToUpdateTargets.push_back(aura);
         return false;
     }, removeMode);
+
+    for (Aura* aura : aurasToUpdateTargets)
+    {
+        aura->UpdateTargetMap(aura->GetCaster());
+
+        // Fully remove the aura if all effects were removed
+        if (!aura->IsPassive() && aura->GetOwner() == this && !aura->GetApplicationOfTarget(GetGUID()))
+            aura->Remove(removeMode);
+    }
 }
 
 void Unit::RemoveAurasByShapeShift()
@@ -6813,7 +6823,8 @@ float Unit::SpellCritChanceTaken(Unit const* caster, SpellInfo const* spellInfo,
                 if (GetTypeId() == TYPEID_UNIT)
                 {
                     int32 const levelDiff = static_cast<int32>(getLevelForTarget(caster)) - caster->getLevel();
-                    crit_chance -= levelDiff * 0.7f;
+                    if (levelDiff > 0)
+                        crit_chance -= levelDiff * 0.7f;
                 }
             }
             break;
@@ -7101,23 +7112,16 @@ float Unit::SpellHealingPctDone(Unit* victim, SpellInfo const* spellProto) const
                 if (victim->HealthBelowPct(50))
                     AddPct(DoneTotalMod, overrideClassScripts->GetAmount());
                 break;
-            case 7798: // Glyph of Regrowth
-            {
-                if (victim->GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_DRUID, 0x40, 0, 0))
-                    AddPct(DoneTotalMod, overrideClassScripts->GetAmount());
-                break;
-            }
             case 8477: // Nourish Heal Boost
             {
                 int32 modPercent = 0;
-                for (auto& aurAppPair : victim->GetAppliedAuras())
+                for (AuraEffect const* periodicHeal : victim->GetAuraEffectsByType(SPELL_AURA_PERIODIC_HEAL))
                 {
-                    Aura const* aura = aurAppPair.second->GetBase();
-                    if (aura->GetCasterGUID() != GetGUID())
+                    if (periodicHeal->GetCasterGUID() != GetGUID() || periodicHeal->GetSpellInfo()->SpellFamilyName != SPELLFAMILY_DRUID)
                         continue;
 
-                    if (aura->GetSpellInfo()->SpellFamilyName == SPELLFAMILY_DRUID && aura->GetSpellInfo()->SpellFamilyFlags.HasFlag(0x10 | 0x40, 0x10 | 0x4000000, 0))
-                        modPercent += overrideClassScripts->GetAmount() * aura->GetStackAmount();
+                    if (periodicHeal->GetSpellInfo()->SpellFamilyFlags.HasFlag(0x10 | 0x40, 0x10 | 0x4000000, 0))
+                        modPercent += overrideClassScripts->GetAmount() * periodicHeal->GetBase()->GetStackAmount();
                 }
                 AddPct(DoneTotalMod, modPercent);
                 break;
@@ -7176,14 +7180,6 @@ uint32 Unit::SpellHealingBonusTaken(Unit* caster, SpellInfo const* spellProto, u
     if (AuraEffect const* Tenacity = GetAuraEffect(58549, 0))
         AddPct(TakenTotalMod, Tenacity->GetAmount());
 
-    // Nourish cast
-    if (spellProto->SpellFamilyName == SPELLFAMILY_DRUID && spellProto->SpellFamilyFlags[1] & 0x2000000)
-    {
-        // Rejuvenation, Regrowth, Lifebloom, or Wild Growth
-        if (GetAuraEffect(SPELL_AURA_PERIODIC_HEAL, SPELLFAMILY_DRUID, 0x50, 0x4000010, 0))
-            // increase healing by 20%
-            TakenTotalMod *= 1.2f;
-    }
     // Unused in Cataclysm (15595)
     if (damagetype == DOT)
     {
@@ -11206,7 +11202,7 @@ void Unit::PlayOneShotAnimKitId(uint16 animKitId)
         if (OutdoorPvP* pvp = player->GetOutdoorPvP())
             pvp->HandleKill(player, victim);
 
-        if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(player->GetZoneId()))
+        if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(player->GetMap(), player->GetZoneId()))
             bf->HandleKill(player, victim);
     }
 
@@ -13270,8 +13266,6 @@ bool Unit::UpdatePosition(float x, float y, float z, float orientation, bool tel
     }
     else if (turn)
         UpdateOrientation(orientation);
-
-    UpdatePositionData();
 
     _positionUpdateInfo.Relocated = relocated;
     _positionUpdateInfo.Turned = turn;

@@ -5104,6 +5104,43 @@ class spell_item_blaze_of_life : public SpellScript
     }
 };
 
+static std::array<uint32 /*spellId*/, MAX_SPELL_SCHOOL - 1> const ResistanceSpellsBySchool =
+{
+    // SPELL_SCHOOL_NORMAL has no shield
+    27536, // SPELL_SCHOOL_HOLY
+    27533, // SPELL_SCHOOL_FIRE
+    27538, // SPELL_SCHOOL_NATURE
+    27534, // SPELL_SCHOOL_FROST
+    27535, // SPELL_SCHOOL_SHADOW
+    27540  // SPELL_SCHOOL_ARCANE
+};
+
+// 27539 - Obsidian Armor
+class spell_item_obsidian_armor : public AuraScript
+{
+    bool Validate(SpellInfo const* /*spell*/) override
+    {
+        return ValidateSpellInfo(ResistanceSpellsBySchool);
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        // There are spells which have multiple schools (Frostfire Bolt for example). So we proc multiple shields
+        for (uint8 i = SPELL_SCHOOL_HOLY; i < MAX_SPELL_SCHOOL; ++i)
+        {
+            if ((eventInfo.GetSpellInfo()->GetSchoolMask() & (1 << i)) != 0)
+                GetTarget()->CastSpell(GetTarget(), ResistanceSpellsBySchool[i - 1], aurEff);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectProc.Register(&spell_item_obsidian_armor::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
 void AddSC_item_spell_scripts()
 {
     // 23074 Arcanite Dragonling
@@ -5240,4 +5277,5 @@ void AddSC_item_spell_scripts()
     RegisterSpellScript(spell_item_jom_gabbar);
     RegisterSpellScript(spell_item_satisfied);
     RegisterSpellScript(spell_item_blaze_of_life);
+    RegisterSpellScript(spell_item_obsidian_armor);
 }

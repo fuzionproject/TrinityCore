@@ -675,6 +675,14 @@ enum TransferAbortReason
     TRANSFER_ABORT_ALREADY_COMPLETED_ENCOUNTER  = 0x13         // 4.2.2
 };
 
+enum class TransferAbortedUniqueMessageArgs : uint8
+{
+    None                                        = 0,
+    StillWithinTheLichKingsGrasp                = 1,
+    DestinyOfTheBilgewaterCartelStillUndecided  = 2,
+    FateOfGilneasHasNotBeenDecidedYet           = 3
+};
+
 enum InstanceResetWarningType
 {
     RAID_INSTANCE_WARNING_HOURS     = 1,                    // WARNING! %s is scheduled to reset in %d hour(s).
@@ -1021,8 +1029,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         void SetObjectScale(float scale) override;
 
-        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0);
-        bool TeleportTo(WorldLocation const& loc, uint32 options = 0);
+        bool TeleportTo(uint32 mapid, float x, float y, float z, float orientation, uint32 options = 0, Optional<uint32> instanceId = {});
+        bool TeleportTo(WorldLocation const& loc, uint32 options = 0, Optional<uint32> instanceId = {});
         bool TeleportToBGEntryPoint();
 
         bool HasSummonPending() const;
@@ -1376,7 +1384,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void ResetDailyQuestStatus();
         void ResetWeeklyQuestStatus();
         void ResetMonthlyQuestStatus();
-        void ResetSeasonalQuestStatus(uint16 event_id);
+        void ResetSeasonalQuestStatus(uint16 event_id, time_t eventStartTime);
         void ResetWeeklyLFGRewardStatus();
         void ResetDailyLFGRewardStatus();
 
@@ -1746,7 +1754,6 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         bool UpdateCraftSkill(SpellInfo const* spellInfo);
         bool UpdateGatherSkill(uint32 SkillId, uint32 SkillValue, uint32 RedLevel, uint32 Multiplicator = 1);
         bool UpdateFishingSkill();
-        void GiveXpForGather(uint32 const& skillId);
 
         void SurveyDigSite();
         void NotifyRequestResearchHistory();
@@ -1909,6 +1916,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void SetSkillPermBonus(uint8 pos, uint16 value);
 
         WorldLocation& GetTeleportDest() { return m_teleport_dest; }
+        Optional<uint32> GetTeleportDestInstanceId() const { return m_teleport_instanceId; }
         bool IsBeingTeleported() const { return mSemaphoreTeleport_Near || mSemaphoreTeleport_Far; }
         bool IsBeingTeleportedNear() const { return mSemaphoreTeleport_Near; }
         bool IsBeingTeleportedFar() const { return mSemaphoreTeleport_Far; }
@@ -1917,6 +1925,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void ProcessDelayedOperations();
 
         void CheckAreaExploreAndOutdoor(void);
+        void SetAreaExplored(uint32 areaId);
 
         static uint32 TeamForRace(uint8 race);
         uint32 GetTeam() const { return m_team; }
@@ -2044,7 +2053,6 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         void SendInitWorldStates(uint32 zone, uint32 area);
         void SendUpdateWorldState(uint32 variable, uint32 value, bool hidden = false) const;
         void SendDirectMessage(WorldPacket const* data) const;
-        void SendBGWeekendWorldStates() const;
 
         void SendAurasForTarget(Unit* target) const;
 
@@ -2153,8 +2161,12 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         uint32 GetSaveTimer() const { return m_nextSave; }
         void   SetSaveTimer(uint32 timer) { m_nextSave = timer; }
 
-        void SaveRecallPosition() { m_recall_location.WorldRelocate(*this); }
-        void Recall() { TeleportTo(m_recall_location); }
+        void SaveRecallPosition()
+        {
+            m_recall_location.WorldRelocate(*this);
+            m_recall_instanceId = GetInstanceId();
+        }
+        void Recall() { TeleportTo(m_recall_location, 0, m_recall_instanceId); }
 
         void SetHomebind(WorldLocation const& loc, uint32 areaId);
         void SendBindPointUpdate() const;
@@ -2406,8 +2418,8 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         //We allow only one timed quest active at the same time. Below can then be simple value instead of set.
         typedef std::set<uint32> QuestSet;
-        typedef std::set<uint32> SeasonalQuestSet;
-        typedef std::unordered_map<uint32, SeasonalQuestSet> SeasonalEventQuestMap;
+        typedef std::unordered_map<uint32, time_t> SeasonalQuestMapByQuest;
+        typedef std::unordered_map<uint32, SeasonalQuestMapByQuest> SeasonalQuestMapByEvent;
 
         struct LFGRewardInfo
         {
@@ -2423,7 +2435,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         QuestSet m_timedquests;
         QuestSet m_weeklyquests;
         QuestSet m_monthlyquests;
-        SeasonalEventQuestMap m_seasonalquests;
+        SeasonalQuestMapByEvent m_seasonalquests;
         LFGRewardStatusMap m_lfgrewardstatus;
 
         ObjectGuid m_playerSharingQuest;
@@ -2642,9 +2654,11 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         // Player summoning
         time_t m_summon_expire;
         WorldLocation m_summon_location;
+        uint32 m_summon_instanceId;
 
         // Recall position
         WorldLocation m_recall_location;
+        uint32 m_recall_instanceId;
 
         DeclinedName* m_declinedname;
         Runes* m_runes;
@@ -2707,6 +2721,7 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
 
         // Current teleport data
         WorldLocation m_teleport_dest;
+        Optional<uint32> m_teleport_instanceId;
         uint32 m_teleport_options;
         bool mSemaphoreTeleport_Near;
         bool mSemaphoreTeleport_Far;

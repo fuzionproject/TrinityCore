@@ -41,8 +41,10 @@
 #include "GuildMgr.h"
 #include "InspectPackets.h"
 #include "InstanceScript.h"
+#include "InstanceSaveMgr.h"
 #include "Language.h"
 #include "Log.h"
+#include "Map.h"
 #include "MapManager.h"
 #include "MiscPackets.h"
 #include "Object.h"
@@ -702,7 +704,7 @@ void WorldSession::HandleAreaTriggerOpcode(WorldPacket& recvData)
     bool teleported = false;
     if (player->GetMapId() != at->target_mapId)
     {
-        if (Map::EnterState denyReason = sMapMgr->PlayerCannotEnter(at->target_mapId, player, false))
+        if (Map::EnterState denyReason = Map::PlayerCannotEnter(at->target_mapId, player, false))
         {
             bool reviveAtTrigger = false; // should we revive the player if he is trying to enter the correct instance?
             switch (denyReason)
@@ -1368,7 +1370,7 @@ void WorldSession::HandleAreaSpiritHealerQueryOpcode(WorldPacket& recvData)
     if (bg)
         sBattlegroundMgr->SendAreaSpiritHealerQueryOpcode(_player, bg, guid);
 
-    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetZoneId()))
+    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetMap(), _player->GetZoneId()))
         bf->SendAreaSpiritHealerQueryOpcode(_player, guid);
 }
 
@@ -1391,7 +1393,7 @@ void WorldSession::HandleAreaSpiritHealerQueueOpcode(WorldPacket& recvData)
     if (bg)
         bg->AddPlayerToResurrectQueue(guid, _player->GetGUID());
 
-    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetZoneId()))
+    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetMap(), _player->GetZoneId()))
         bf->AddPlayerToResurrectQueue(guid, _player->GetGUID());
 }
 
@@ -1400,7 +1402,7 @@ void WorldSession::HandleHearthAndResurrect(WorldPacket& /*recvData*/)
     if (_player->IsInFlight())
         return;
 
-    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetZoneId()))
+    if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(_player->GetMap(), _player->GetZoneId()))
     {
         bf->PlayerAskToLeave(_player);
         return;
